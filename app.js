@@ -759,20 +759,28 @@ document.addEventListener('DOMContentLoaded', function () {
           <div>
             <span class="casper-modal-eyebrow">STORE LOCATOR</span>
             <h2 class="casper-modal__title">FIND A NEAREST SHOP</h2>
-            <p class="casper-modal__sub">Enter a US ZIP code to open the live Google Maps view and find nearby shops.</p>
+            <p class="casper-modal__sub">Enter your US ZIP code to find the nearest Casper Smoke Shop.</p>
           </div>
         </div>
+
         <form id="casper-shop-search-form" class="casper-shop-search-form">
-          <input id="casper-shop-zip" class="casper-form-input" type="text" inputmode="numeric" maxlength="10" placeholder="Enter ZIP code e.g. 90001" aria-label="ZIP code" required>
-          <button class="casper-btn-primary" type="submit">SEARCH SHOPS</button>
+          <input id="casper-shop-zip" class="casper-form-input" type="text"
+                 inputmode="numeric" maxlength="10" placeholder="Enter ZIP code "
+                 aria-label="ZIP code" required>
+          <button class="casper-btn-primary" type="submit">FIND SHOP</button>
         </form>
-        <div id="casper-shop-status" class="casper-shop-status" aria-live="polite">Search by ZIP code to load the map.</div>
+
+        <div id="casper-shop-status" class="casper-shop-status" aria-live="polite">
+          Enter your ZIP code to find a Casper Smoke Shop.
+        </div>
+
         <div class="casper-shop-locator__layout">
-          <div id="casper-shop-map" class="casper-shop-map" aria-label="Nearby shops map">
-            <div class="casper-map-placeholder">Enter your ZIP code to load the map.</div>
+          <div id="casper-shop-map" class="casper-shop-map" aria-label="Casper Smoke Shop map">
+            <div class="casper-map-placeholder">Enter ZIP code 32726 to view the Casper Smoke Shop location.</div>
           </div>
+
           <div id="casper-shop-results" class="casper-shop-results">
-            <div class="casper-shop-empty">Nearby shops will appear here after you search.</div>
+            <div class="casper-shop-empty">The Casper Smoke Shop location will appear here.</div>
           </div>
         </div>
       </div>
@@ -783,107 +791,154 @@ document.addEventListener('DOMContentLoaded', function () {
     const results = document.getElementById('casper-shop-results');
     const mapEl = document.getElementById('casper-shop-map');
 
-    function setGoogleMap(query) {
-      const q = encodeURIComponent(query);
+    // Official Casper Smoke Shop location requested for ZIP 32726.
+    // Keep this local so the locator does NOT accidentally return unrelated
+    // smoke/vape shops from OpenStreetMap/Overpass.
+    const CASPER_STORE = {
+      name: 'Casper Smoke Shop',
+      address: '2105 E Orange Ave, Eustis, FL 32726, United States',
+      zip: '32726',
+      logo: 'casper-mascot-logo.png',
+      mapQuery: '2105 E Orange Ave, Eustis, FL 32726, United States'
+    };
+
+    function renderCasperStore(store) {
+      const q = encodeURIComponent(store.mapQuery);
+
       mapEl.innerHTML = `
-        <iframe
-          title="Casper Smoke Shop map"
-          class="casper-google-map-frame"
-          src="https://www.google.com/maps?q=${q}&output=embed"
-          loading="eager"
-          referrerpolicy="no-referrer-when-downgrade"
-          allowfullscreen>
-        </iframe>`;
+        <div class="casper-store-map-wrap">
+          <iframe
+            title="${escapeHtml(store.name)} location map"
+            class="casper-google-map-frame"
+            src="https://www.google.com/maps?q=${q}&output=embed"
+            loading="eager"
+            referrerpolicy="no-referrer-when-downgrade"
+            allowfullscreen>
+          </iframe>
+
+          <div class="casper-map-store-card">
+            <img src="${escapeHtml(store.logo)}" alt="Casper Smoke Shop logo"
+                 onerror="this.style.display='none'">
+            <div>
+              <strong>${escapeHtml(store.name)}</strong>
+              <span>${escapeHtml(store.address)}</span>
+              <a target="_blank" rel="noopener noreferrer"
+                 href="https://www.google.com/maps/search/?api=1&query=${q}">
+                 OPEN IN GOOGLE MAPS
+              </a>
+            </div>
+          </div>
+        </div>
+      `;
+
+      results.innerHTML = `
+        <article class="casper-shop-result casper-shop-result--featured is-selected">
+          <div class="casper-shop-result__number">✓</div>
+          <div class="casper-shop-result__body">
+            <div class="casper-shop-result__brand">
+              <img src="${escapeHtml(store.logo)}" alt="Casper Smoke Shop logo"
+                   onerror="this.style.display='none'">
+              <strong>${escapeHtml(store.name)}</strong>
+            </div>
+            <span>${escapeHtml(store.address)}</span>
+            <span>ZIP: ${escapeHtml(store.zip)}</span>
+            <button type="button" class="casper-shop-select">SELECT THIS SHOP</button>
+          </div>
+        </article>
+      `;
+
+      status.innerHTML = `<strong>Casper Smoke Shop found.</strong> Showing the exact store location for ZIP ${escapeHtml(store.zip)}.`;
+
+      const selectBtn = results.querySelector('.casper-shop-select');
+      if (selectBtn) {
+        selectBtn.addEventListener('click', function () {
+          localStorage.setItem('casper_selected_shop', JSON.stringify(store));
+          closeModal();
+          showToast(`${store.name} selected as your preferred shop.`, 'success');
+          updateSelectedShopButton(store.name);
+        });
+      }
     }
 
-    form.addEventListener('submit', async function (e) {
+    function showUnsupportedZipPopup(zip) {
+      status.textContent = '';
+      results.innerHTML = `
+        <div class="casper-shop-empty">
+          <strong>Casper Smoke Shop is not available for ZIP ${escapeHtml(zip)}</strong>
+          <p>We currently have a Casper Smoke Shop location configured for ZIP 32726.</p>
+          <p>Would you like to request a Casper Smoke Shop near your location?</p>
+          <div class="casper-shop-request-actions">
+            <a class="casper-shop-google" target="_blank" rel="noopener noreferrer"
+               href="mailto:info@caspersmokeshop.com?subject=${encodeURIComponent('Request a Casper Smoke Shop near ZIP ' + zip)}">
+              REQUEST A STORE
+            </a>
+          </div>
+        </div>
+      `;
+
+      mapEl.innerHTML = `
+        <div class="casper-map-placeholder casper-map-placeholder--message">
+          <div class="casper-map-message-icon">⌖</div>
+          <strong>No Casper Smoke Shop at this ZIP</strong>
+          <span>ZIP ${escapeHtml(zip)} is not currently configured.</span>
+        </div>
+      `;
+
+      openModal(`
+        <div class="casper-shop-popup casper-shop-popup--official">
+          <div class="casper-shop-popup__icon">⌖</div>
+          <span class="casper-modal-eyebrow">STORE LOCATOR</span>
+          <h2 class="casper-modal__title">NO CASPER SHOP NEARBY</h2>
+          <p class="casper-shop-popup__lead">
+            We’re sorry, but we don’t currently have a Casper Smoke Shop location near ZIP
+            <strong>${escapeHtml(zip)}</strong>.
+          </p>
+
+          <div class="casper-shop-popup__notice">
+            <strong>Looking for a Casper Smoke Shop in your area?</strong>
+            <span>
+              Request a store near your location, or contact our team to learn more about
+              business and franchise opportunities.
+            </span>
+          </div>
+
+          <div class="casper-shop-popup__actions">
+            <a class="casper-btn-primary" target="_blank" rel="noopener noreferrer"
+               href="mailto:info@caspersmokeshop.com?subject=${encodeURIComponent('Request a Casper Smoke Shop near ZIP ' + zip)}">
+              REQUEST A STORE
+            </a>
+            <a class="casper-shop-popup__secondary" target="_blank" rel="noopener noreferrer"
+               href="mailto:info@caspersmokeshop.com?subject=${encodeURIComponent('Casper Smoke Shop Business / Franchise Inquiry')}">
+              BUSINESS &amp; FRANCHISE INQUIRY
+            </a>
+          </div>
+
+          <button type="button" class="casper-shop-popup__close" id="casper-shop-popup-close">CLOSE</button>
+        </div>
+      `);
+      const closeBtn = document.getElementById('casper-shop-popup-close');
+      if (closeBtn) closeBtn.addEventListener('click', closeModal);
+    }
+
+    form.addEventListener('submit', function (e) {
       e.preventDefault();
+
       const zip = document.getElementById('casper-shop-zip').value.trim();
+
       if (!/^\d{5}(?:-\d{4})?$/.test(zip)) {
         status.textContent = 'Please enter a valid 5-digit US ZIP code.';
         return;
       }
 
-      status.textContent = 'Opening Google Maps and finding nearby shops…';
-      results.innerHTML = '<div class="casper-shop-empty">Loading nearby shops…</div>';
-
-      // Always render the actual Google Maps view first. This means the map
-      // still appears even when third-party shop-data APIs are unavailable.
-      setGoogleMap('smoke shops near ' + zip + ' USA');
-
-      try {
-        const geo = await geocodeZip(zip);
-        setGoogleMap('smoke shops near ' + zip + ' USA');
-
-        let shops = [];
-        try {
-          shops = await findNearbyShops(geo.lat, geo.lon);
-        } catch (shopError) {
-          console.warn('Casper shop-data lookup failed:', shopError);
-        }
-
-        if (!shops.length) {
-          status.textContent = 'Google Maps is ready. Search results are available directly on the map.';
-          results.innerHTML = `
-            <div class="casper-shop-empty">
-              <strong>Nearby shops</strong>
-              <p>Use the live Google Maps view to choose a nearby smoke/vape shop.</p>
-              <a class="casper-shop-google" target="_blank" rel="noopener noreferrer"
-                 href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent('smoke shop near ' + zip + ' USA')}">OPEN GOOGLE MAPS</a>
-            </div>`;
-          return;
-        }
-
-        shops.sort((a, b) => {
-          const da = (a.lat - geo.lat) ** 2 + (a.lon - geo.lon) ** 2;
-          const db = (b.lat - geo.lat) ** 2 + (b.lon - geo.lon) ** 2;
-          return da - db;
-        });
-
-        results.innerHTML = '';
-        shops.slice(0, 25).forEach((shop, index) => {
-          const card = document.createElement('article');
-          card.className = 'casper-shop-result';
-          card.innerHTML = `
-            <div class="casper-shop-result__number">${index + 1}</div>
-            <div class="casper-shop-result__body">
-              <strong>${escapeHtml(shop.name)}</strong>
-              <span>${escapeHtml(shop.address)}</span>
-              ${shop.phone ? `<span>${escapeHtml(shop.phone)}</span>` : ''}
-              <button type="button" class="casper-shop-select">SELECT SHOP</button>
-            </div>
-          `;
-
-          card.addEventListener('click', function () {
-            setGoogleMap(`${shop.name}, ${shop.address}`);
-            document.querySelectorAll('.casper-shop-result').forEach(x => x.classList.remove('is-selected'));
-            card.classList.add('is-selected');
-          });
-
-          card.querySelector('.casper-shop-select').addEventListener('click', function (event) {
-            event.stopPropagation();
-            localStorage.setItem('casper_selected_shop', JSON.stringify(shop));
-            closeModal();
-            showToast(`${shop.name} selected as your preferred shop.`, 'success');
-            updateSelectedShopButton(shop.name);
-          });
-
-          results.appendChild(card);
-        });
-
-        status.textContent = `${Math.min(shops.length, 25)} nearby mapped shop${shops.length === 1 ? '' : 's'} found. Select a shop to center Google Maps on it.`;
-      } catch (error) {
-        console.error('Casper store locator:', error);
-        // Keep the Google map visible even if ZIP geocoding fails.
-        status.textContent = 'Google Maps is open. You can search the ZIP directly on the map.';
-        results.innerHTML = `
-          <div class="casper-shop-empty">
-            <strong>Map is available</strong>
-            <p>We could not load the extra shop list, but the live Google Maps search is still available.</p>
-            <a class="casper-shop-google" target="_blank" rel="noopener noreferrer"
-               href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent('smoke shop near ' + zip + ' USA')}">OPEN GOOGLE MAPS</a>
-          </div>`;
+      // Current configured Casper location:
+      // 32726 -> 2105 E Orange Ave, Eustis, FL 32726, United States
+      if (zip === '32726' || zip === '32726-0000') {
+        renderCasperStore(CASPER_STORE);
+        return;
       }
+
+      // IMPORTANT: Do not return unrelated shops for other ZIP codes.
+      showUnsupportedZipPopup(zip);
     });
   }
 
