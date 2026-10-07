@@ -502,12 +502,14 @@ document.addEventListener('DOMContentLoaded', function () {
     const ageGate = document.getElementById('casper-age-gate');
     const yesBtn = document.getElementById('casper-age-yes');
     const noBtn = document.getElementById('casper-age-no');
-    const verifyBtn = document.getElementById('casper-age-verify');
-    const backBtn = document.getElementById('casper-age-back');
-    const dobInput = document.getElementById('casper-dob');
-    const dobError = document.getElementById('casper-dob-error');
-    const stepOne = document.getElementById('casper-age-step-one');
-    const stepTwo = document.getElementById('casper-age-step-two');
+
+    function isLoggedIn() {
+      try {
+        return !!localStorage.getItem('casper_logged_user');
+      } catch (e) {
+        return false;
+      }
+    }
 
     function hideGate() {
       if (!ageGate) return;
@@ -518,77 +520,31 @@ document.addEventListener('DOMContentLoaded', function () {
         document.body.style.overflow = '';
       }, 300);
     }
+
     function showGate() {
-      if (!ageGate) return;
-      ageGate.classList.add('cg-wired');
+      if (!ageGate || isLoggedIn()) return;
       ageGate.style.display = 'flex';
       ageGate.style.opacity = '1';
       document.body.style.overflow = 'hidden';
-      if (stepOne) stepOne.style.display = 'block';
-      if (stepTwo) stepTwo.style.display = 'none';
-    }
-    function parseDOB(value) {
-      const m = String(value || '').trim().match(/^(0[1-9]|1[0-2])\/(0[1-9]|[12]\d|3[01])\/(\d{4})$/);
-      if (!m) return null;
-      const month = Number(m[1]), day = Number(m[2]), year = Number(m[3]);
-      const d = new Date(year, month - 1, day);
-      if (d.getFullYear() !== year || d.getMonth() !== month - 1 || d.getDate() !== day) return null;
-      return d;
-    }
-    function is21OrOlder(dob) {
-      const now = new Date();
-      const cutoff = new Date(now.getFullYear() - 21, now.getMonth(), now.getDate());
-      return dob <= cutoff;
-    }
-    function formatDOBInput() {
-      if (!dobInput) return;
-      let digits = dobInput.value.replace(/\D/g, '').slice(0, 8);
-      if (digits.length > 4) digits = digits.slice(0,2) + '/' + digits.slice(2,4) + '/' + digits.slice(4);
-      else if (digits.length > 2) digits = digits.slice(0,2) + '/' + digits.slice(2);
-      dobInput.value = digits;
-      if (dobError) dobError.style.display = 'none';
     }
 
-    // Keep age verification for this browser tab only. After a successful
-    // verification, moving between sections/pages in the same tab will not reopen it.
-    // A fresh tab/window gets its own sessionStorage and will ask again.
-    try {
-      if (sessionStorage.getItem('casper_age_verified') === '1') hideGate();
-      else showGate();
-    } catch (e) {
-      showGate();
+    // Requirement: every fresh website open/page load asks logged-out visitors again.
+    // No localStorage/cookie is used for age verification.
+    if (isLoggedIn()) hideGate();
+    else showGate();
+
+    if (yesBtn) {
+      yesBtn.addEventListener('click', function () {
+        hideGate();
+        showToast('Age verified! Welcome to Casper Smoke Shop.', 'success');
+      });
     }
 
-    if (yesBtn) yesBtn.addEventListener('click', function () {
-      if (stepOne) stepOne.style.display = 'none';
-      if (stepTwo) stepTwo.style.display = 'block';
-      setTimeout(() => dobInput && dobInput.focus(), 50);
-    });
-    if (backBtn) backBtn.addEventListener('click', function () {
-      if (stepTwo) stepTwo.style.display = 'none';
-      if (stepOne) stepOne.style.display = 'block';
-    });
-    if (dobInput) {
-      dobInput.addEventListener('input', formatDOBInput);
-      dobInput.addEventListener('keydown', e => { if (e.key === 'Enter' && verifyBtn) verifyBtn.click(); });
+    if (noBtn) {
+      noBtn.addEventListener('click', function () {
+        window.location.href = 'https://www.google.com';
+      });
     }
-    if (verifyBtn) verifyBtn.addEventListener('click', function () {
-      const dob = parseDOB(dobInput ? dobInput.value : '');
-      if (!dob) {
-        if (dobError) { dobError.textContent = 'Please enter a valid date in MM/DD/YYYY format.'; dobError.style.display = 'block'; }
-        return;
-      }
-      if (!is21OrOlder(dob)) {
-        if (dobError) { dobError.textContent = 'You must be 21 or older to enter Casper Smoke Shop.'; dobError.style.display = 'block'; }
-        return;
-      }
-      sessionStorage.setItem('casper_age_verified', '1');
-      hideGate();
-      showToast('Age verified! Welcome to Casper Smoke Shop.', 'success');
-    });
-    if (noBtn) noBtn.addEventListener('click', function () {
-      window.location.href = 'https://www.google.com';
-    });
 
     window.showCasperAgeGate = showGate;
     window.hideCasperAgeGate = hideGate;
@@ -845,27 +801,7 @@ document.addEventListener('DOMContentLoaded', function () {
       return u ? JSON.parse(u) : null;
     } catch (e) { return null; }
   }
-  function getStoredAccount(email) {
-    try {
-      const accounts = JSON.parse(localStorage.getItem('casper_accounts') || '{}');
-      return accounts[String(email || '').toLowerCase()] || null;
-    } catch (e) { return null; }
-  }
-  function saveStoredAccount(account) {
-    const accounts = JSON.parse(localStorage.getItem('casper_accounts') || '{}');
-    accounts[account.email.toLowerCase()] = account;
-    localStorage.setItem('casper_accounts', JSON.stringify(accounts));
-  }
-  function getAccountOrders(email) {
-    try {
-      const all = JSON.parse(localStorage.getItem('casper_orders') || '{}');
-      return all[String(email || '').toLowerCase()] || [];
-    } catch (e) { return []; }
-  }
-  function getAccountRewards(email) {
-    const account = getStoredAccount(email);
-    return account ? Number(account.tokens || 0) : 0;
-  }
+
   function updateUserAccountUI() {
     const user = getUserSession();
     const acctBtns = document.querySelectorAll('.cc-acct, a[href*="account"]');
@@ -881,91 +817,86 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     });
   }
-  function renderAccountDashboard(user) {
-    const account = getStoredAccount(user.email) || { name:user.name, email:user.email, tokens:0, membership:'Casper Rewards', joinedAt:new Date().toISOString() };
-    const orders = getAccountOrders(user.email);
-    const tokens = Number(account.tokens || 0);
-    const redeemable = tokens >= 200;
-    openModal(`
-      <div class="casper-account-dashboard">
-        <div class="casper-account-hero">
-          <div><div class="casper-account-kicker">Casper Account</div><h2>Welcome, ${account.name}!</h2><div class="casper-account-email">${account.email}</div></div>
-          <div class="casper-token-badge"><strong>${tokens}</strong><span>Casper Tokens</span></div>
-        </div>
-        <div class="casper-reward-grid">
-          <div class="casper-reward-card"><small>Rewards rate</small><strong>1 Token / $1</strong></div>
-          <div class="casper-reward-card"><small>Reward</small><strong>$15 OFF</strong></div>
-          <div class="casper-reward-card"><small>Redeem at</small><strong>200 Tokens</strong></div>
-        </div>
-        <p class="casper-reward-note">Every eligible dollar you spend earns 1 Casper Token. Redeem 200 Tokens for $15 OFF your next qualifying order.</p>
-        <div class="casper-dashboard-actions">
-          <button type="button" class="casper-btn-primary" id="casper-redeem-btn" ${redeemable ? '' : 'disabled'}>${redeemable ? 'REDEEM 200 TOKENS — $15 OFF' : 'EARN ' + (200 - tokens) + ' MORE TOKENS'}</button>
-          <button type="button" class="casper-btn-primary" id="casper-logout-btn" style="background:#ff4d4d;color:#fff">SIGN OUT</button>
-        </div>
-        <div class="casper-dashboard-section">
-          <h3>Membership</h3>
-          <div class="casper-order-empty"><strong>${account.membership || 'Casper Rewards'}</strong> · ${account.membershipStatus || 'Active'}<br>Earn Tokens on every eligible purchase.</div>
-        </div>
-        <div class="casper-dashboard-section">
-          <h3>Order History</h3>
-          ${orders.length ? orders.slice().reverse().map(o => `<div class="casper-order-row"><span><strong>#${o.number}</strong></span><span>${o.date}</span><span>${o.items} item${o.items === 1 ? '' : 's'}</span><span>$${Number(o.total).toFixed(2)}</span></div>`).join('') : '<div class="casper-order-empty">No orders yet. Your completed orders will appear here.</div>'}
-        </div>
-      </div>
-    `);
-    const redeemBtn = document.getElementById('casper-redeem-btn');
-    if (redeemBtn && redeemable) redeemBtn.addEventListener('click', function () {
-      account.tokens = tokens - 200;
-      saveStoredAccount(account);
-      localStorage.setItem('casper_reward_discount', '15');
-      showToast('$15 reward activated! It will apply at checkout.', 'success');
-      renderAccountDashboard(user);
-    });
-    const logout = document.getElementById('casper-logout-btn');
-    if (logout) logout.addEventListener('click', function () {
-      localStorage.removeItem('casper_logged_user');
-      updateUserAccountUI(); closeModal();
-      if (window.showCasperAgeGate) window.showCasperAgeGate();
-      showToast('Signed out successfully.', 'info');
-    });
-  }
+
   function openAccountModal() {
     const user = getUserSession();
-    if (user) { renderAccountDashboard(user); return; }
-    openModal(`
-      <h2 class="casper-modal__title">🔐 Casper Account</h2>
-      <p class="casper-modal__sub">Sign in or create your account to track orders, membership and Casper Tokens.</p>
-      <div class="casper-modal-tabs"><button class="casper-modal-tab is-active" id="tab-login">Sign In</button><button class="casper-modal-tab" id="tab-register">Create Account</button></div>
-      <form id="casper-account-form">
-        <div class="casper-form-group" id="group-name" style="display:none"><label>Full Name</label><input type="text" class="casper-form-input" id="acct-name" placeholder="John Doe"></div>
-        <div class="casper-form-group"><label>Email Address</label><input type="email" class="casper-form-input" id="acct-email" placeholder="you@example.com" required></div>
-        <div class="casper-form-group"><label>Password</label><input type="password" class="casper-form-input" id="acct-password" placeholder="Create a password" minlength="6" required></div>
-        <button type="submit" class="casper-btn-primary" id="acct-submit-btn">SIGN IN</button>
-      </form>
-    `);
-    let mode = 'login';
-    const tabLogin = document.getElementById('tab-login'), tabReg = document.getElementById('tab-register'), groupName = document.getElementById('group-name'), submitBtn = document.getElementById('acct-submit-btn');
-    tabLogin.addEventListener('click', () => { mode='login'; tabLogin.classList.add('is-active'); tabReg.classList.remove('is-active'); groupName.style.display='none'; submitBtn.textContent='SIGN IN'; });
-    tabReg.addEventListener('click', () => { mode='register'; tabReg.classList.add('is-active'); tabLogin.classList.remove('is-active'); groupName.style.display='block'; submitBtn.textContent='CREATE ACCOUNT'; });
-    document.getElementById('casper-account-form').addEventListener('submit', function(e) {
-      e.preventDefault();
-      const email = document.getElementById('acct-email').value.trim().toLowerCase();
-      const password = document.getElementById('acct-password').value;
-      if (mode === 'register') {
-        const existing = getStoredAccount(email);
-        if (existing) { showToast('An account with this email already exists. Sign in instead.', 'info'); return; }
-        const name = document.getElementById('acct-name').value.trim() || email.split('@')[0];
-        saveStoredAccount({name,email,password,tokens:0,membership:'Casper Rewards',membershipStatus:'Active',joinedAt:new Date().toISOString()});
-        localStorage.setItem('casper_logged_user', JSON.stringify({name,email}));
-        updateUserAccountUI(); renderAccountDashboard({name,email});
-        showToast(`Welcome ${name}! Your Casper account is ready.`, 'success');
-      } else {
-        const account = getStoredAccount(email);
-        if (!account || account.password !== password) { showToast('Incorrect email or password.', 'info'); return; }
-        localStorage.setItem('casper_logged_user', JSON.stringify({name:account.name,email:account.email}));
-        updateUserAccountUI(); renderAccountDashboard(account);
-        showToast(`Welcome back, ${account.name}!`, 'success');
-      }
-    });
+    if (user) {
+      openModal(`
+        <h2 class="casper-modal__title">👤 Welcome, ${user.name}!</h2>
+        <p class="casper-modal__sub">Manage your orders, saved addresses, and Casper VIP status.</p>
+        <div style="background:rgba(255,255,255,0.03);border:1px solid var(--casper-line);padding:18px;border-radius:8px;margin-bottom:20px;text-align:left;">
+          <div style="font-size:14px;margin-bottom:8px;"><strong>Email:</strong> ${user.email}</div>
+          <div style="font-size:14px;margin-bottom:8px;"><strong>Member Status:</strong> <span style="color:var(--casper-green-ink);font-weight:bold;">21+ Verified Casper VIP ⭐</span></div>
+          <div style="font-size:14px;"><strong>Reward Points:</strong> 450 Points ($4.50 reward)</div>
+        </div>
+        <button id="casper-logout-btn" class="casper-btn-primary" style="background:#ff4d4d;color:#fff;">Sign Out</button>
+      `);
+      document.getElementById('casper-logout-btn').addEventListener('click', function () {
+        localStorage.removeItem('casper_logged_user');
+        updateUserAccountUI();
+        closeModal();
+        if (window.showCasperAgeGate) window.showCasperAgeGate();
+        showToast('Signed out successfully. Please confirm you are 21+ to continue.', 'info');
+      });
+    } else {
+      openModal(`
+        <h2 class="casper-modal__title">🔐 Casper Account Sign In</h2>
+        <p class="casper-modal__sub">Sign in to your Casper Smoke Shop account or create a new account to unlock 20% OFF.</p>
+        <div class="casper-modal-tabs">
+          <button class="casper-modal-tab is-active" id="tab-login">Sign In</button>
+          <button class="casper-modal-tab" id="tab-register">Create Account</button>
+        </div>
+        <form id="casper-account-form">
+          <div class="casper-form-group" id="group-name" style="display:none;">
+            <label>Full Name</label>
+            <input type="text" class="casper-form-input" id="acct-name" placeholder="John Doe">
+          </div>
+          <div class="casper-form-group">
+            <label>Email Address</label>
+            <input type="email" class="casper-form-input" id="acct-email" placeholder="you@example.com" required>
+          </div>
+          <div class="casper-form-group">
+            <label>Password</label>
+            <input type="password" class="casper-form-input" id="acct-password" placeholder="••••••••" required>
+          </div>
+          <button type="submit" class="casper-btn-primary" id="acct-submit-btn">SIGN IN</button>
+        </form>
+      `);
+
+      let mode = 'login';
+      const tabLogin = document.getElementById('tab-login');
+      const tabReg = document.getElementById('tab-register');
+      const groupName = document.getElementById('group-name');
+      const submitBtn = document.getElementById('acct-submit-btn');
+
+      tabLogin.addEventListener('click', () => {
+        mode = 'login';
+        tabLogin.classList.add('is-active');
+        tabReg.classList.remove('is-active');
+        groupName.style.display = 'none';
+        submitBtn.textContent = 'SIGN IN';
+      });
+
+      tabReg.addEventListener('click', () => {
+        mode = 'register';
+        tabReg.classList.add('is-active');
+        tabLogin.classList.remove('is-active');
+        groupName.style.display = 'block';
+        submitBtn.textContent = 'CREATE ACCOUNT & UNLOCK 20% OFF';
+      });
+
+      document.getElementById('casper-account-form').addEventListener('submit', function (e) {
+        e.preventDefault();
+        const email = document.getElementById('acct-email').value;
+        const name = mode === 'register' ? document.getElementById('acct-name').value || email.split('@')[0] : email.split('@')[0];
+
+        const session = { name: name, email: email, date: new Date().toISOString() };
+        localStorage.setItem('casper_logged_user', JSON.stringify(session));
+        updateUserAccountUI();
+        closeModal();
+        showToast(`Welcome ${name}! You are signed in.`, 'success');
+      });
+    }
   }
 
   updateUserAccountUI();
@@ -1484,13 +1415,12 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     const discountAmount = subtotal * appliedDiscount;
-    const rewardDiscount = Math.min(subtotal - discountAmount, Number(localStorage.getItem('casper_reward_discount') || 0));
     const shippingState = (localStorage.getItem('casper_shipping_state') || 'in-state').toLowerCase();
     const isInState = shippingState === 'in-state';
     const isFreeShipping = isInState && subtotal >= CASPER_FREE_SHIPPING_THRESHOLD;
     const shippingFee = isFreeShipping ? 0 : (isInState ? 9.99 : CASPER_OUT_OF_STATE_SHIPPING_FEE);
-    const tax = Math.max(0, subtotal - discountAmount - rewardDiscount) * 0.08;
-    const finalTotal = Math.max(0, (subtotal - discountAmount - rewardDiscount) + shippingFee + tax);
+    const tax = (subtotal - discountAmount) * 0.08;
+    const finalTotal = (subtotal - discountAmount) + shippingFee + tax;
 
     openModal(`
       <h2 class="casper-modal__title">🛍️ Secure Express Checkout</h2>
@@ -1536,7 +1466,7 @@ document.addEventListener('DOMContentLoaded', function () {
               <button type="button" id="chk-apply-promo" style="padding:0 16px;background:var(--casper-line);color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:bold;">APPLY</button>
             </div>
           </div>
-          ${rewardDiscount > 0 ? `<div style="padding:10px;border:1px solid var(--casper-green-dim);border-radius:7px;color:var(--casper-green-ink);font-size:12px;margin-top:10px;">🎟️ Casper Token Reward: -$${rewardDiscount.toFixed(2)}</div>` : ''}<button type="submit" class="casper-btn-primary" style="margin-top:10px;">PLACE ORDER — $${finalTotal.toFixed(2)}</button>
+          <button type="submit" class="casper-btn-primary" style="margin-top:10px;">PLACE ORDER — $${finalTotal.toFixed(2)}</button>
         </form>
 
         <div style="background:rgba(255,255,255,0.03);border:1px solid var(--casper-line);padding:18px;border-radius:10px;height:fit-content;">
@@ -1576,16 +1506,7 @@ document.addEventListener('DOMContentLoaded', function () {
       e.preventDefault();
       const orderNum = 'CSP-' + Math.floor(100000 + Math.random() * 900000);
       const name = document.getElementById('chk-name').value;
-      const email = document.getElementById('chk-email').value.trim().toLowerCase();
-      const account = getStoredAccount(email);
-      const earnedTokens = Math.floor(Math.max(0, subtotal - discountAmount - rewardDiscount));
-      const allOrders = JSON.parse(localStorage.getItem('casper_orders') || '{}');
-      const orders = allOrders[email] || [];
-      orders.push({number:orderNum,date:new Date().toLocaleDateString('en-US'),items:cart.reduce((n,i)=>n+i.quantity,0),total:finalTotal});
-      allOrders[email] = orders;
-      localStorage.setItem('casper_orders', JSON.stringify(allOrders));
-      if (account) { account.tokens = Number(account.tokens || 0) + earnedTokens; saveStoredAccount(account); localStorage.setItem('casper_logged_user', JSON.stringify({name:account.name,email:account.email})); }
-      if (rewardDiscount > 0) localStorage.removeItem('casper_reward_discount');
+      const email = document.getElementById('chk-email').value;
 
       cart = [];
       saveCart();
@@ -1894,7 +1815,7 @@ document.addEventListener('DOMContentLoaded', function () {
         <article class="casper-vc-card" data-vc-product-id="${p.id}">
           <button class="casper-vc-card__image-btn" type="button" aria-label="View ${p.title}">
             <span class="casper-vc-badge">${p.tag}</span>
-            <img src="assets/products/${p.id}.svg" alt="${p.title}" loading="lazy" data-original-image="${p.image}">
+            <img src="${p.image}" alt="${p.title}" loading="lazy" onerror="this.onerror=null;this.src='assets/products/${p.id}.svg';">
           </button>
           <div class="casper-vc-card__body">
             <div class="casper-vc-rating" aria-label="${p.rating} out of 5 stars">
@@ -2027,275 +1948,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const category = getCategoryFromLocation();
     if (category) renderCategoryPage(category);
-  })();
-
-
-  // ==========================================
-  // 15. ADDITIVE NAV CATEGORY STORE (demo data)
-  // Existing Vapes/Cigars features are preserved.
-  // ==========================================
-  (function initAllNavCategories() {
-    /* ================================================================
-       CASPER CATEGORY STORE
-       Additive e-commerce layer: keeps the existing site intact while
-       making every navbar collection clickable, searchable and routable.
-       ================================================================ */
-    const categoryGroups = {
-      'SHOP ALL': ['Vape Kits','Disposable Vapes','E-Liquids','Glass','Concentrates','Accessories','Deals','Pod Systems','Starter Kits','Nic Salts','Freebase Juice','Zero Nicotine','Wax & Dabs','Live Resin','Cartridges','Bongs','Dab Rigs','Hand Pipes','Bubblers','Grinders','Rolling Papers','Trays & Storage'],
-      'VAPES & DISPOSABLES': ['Vape Kits','Disposable Vapes','Pod Systems','Starter Kits'],
-      'E-LIQUIDS': ['Nic Salts','Freebase Juice','Zero Nicotine'],
-      'CONCENTRATES': ['Wax & Dabs','Live Resin','Cartridges'],
-      'GLASS': ['Bongs','Dab Rigs','Hand Pipes','Bubblers'],
-      'ACCESSORIES': ['Grinders','Rolling Papers','Trays & Storage'],
-      'BRANDS': ['Brands'],
-      'DEALS': ['Deals']
-    };
-
-    const navCategories = [
-      'Vape Kits','Disposable Vapes','E-Liquids','Glass','Concentrates','Accessories','Deals',
-      'Pod Systems','Starter Kits','Nic Salts','Freebase Juice','Zero Nicotine','Wax & Dabs',
-      'Live Resin','Cartridges','Bongs','Dab Rigs','Hand Pipes','Bubblers','Grinders',
-      'Rolling Papers','Trays & Storage','Brands'
-    ];
-
-    const productTypes = {
-      'Vape Kits':['Starter Pod Kit','Compact Pod Kit','Refillable Vape Kit','USB-C Vape Kit','Pocket Vape Kit','Dual-Coil Kit','Classic Pod System','Travel Vape Kit','Adjustable Pod Kit','Everyday Vape Kit'],
-      'Disposable Vapes':['Disposable Device','Compact Disposable','Rechargeable Disposable','Pocket Disposable','Mesh Disposable','Long-Lasting Disposable','Slim Disposable','Digital Display Disposable','Classic Disposable','Travel Disposable'],
-      'E-Liquids':['Purple Blend E-Liquid','Citrus Blend E-Liquid','Berry Blend E-Liquid','Mint Blend E-Liquid','Vanilla Blend E-Liquid','Tropical Blend E-Liquid','Classic Blend E-Liquid','Cool Blend E-Liquid','Fruit Blend E-Liquid','Smooth Blend E-Liquid'],
-      'Glass':['Glass Water Pipe','Mini Glass Pipe','Beaker Glass Piece','Straight Tube Glass','Color Accent Glass','Compact Glass Piece','Classic Glass Pipe','Thick Glass Piece','Art Glass Piece','Everyday Glass Piece'],
-      'Concentrates':['Concentrate Accessory','Wax Tool Set','Storage Container','Concentrate Jar','Dab Accessory Kit','Silicone Storage Set','Glass Accessory','Portable Accessory','Cleaning Accessory','Concentrate Organizer'],
-      'Accessories':['4-Piece Grinder','Rolling Tray','Storage Pouch','Paper Pack','Cleaning Brush Set','Odor-Control Bag','Pocket Case','Metal Grinder','Travel Container','Accessory Bundle'],
-      'Pod Systems':['Refillable Pod System','Compact Pod Device','Magnetic Pod System','Dual Pod Kit','Pocket Pod System','USB-C Pod System','Slim Pod Device','Classic Pod Kit','Starter Pod Set','Everyday Pod System'],
-      'Starter Kits':['Beginner Kit','Essential Starter Set','Compact Starter Kit','Easy-Use Kit','Pod Starter Bundle','Travel Starter Kit','Classic Starter Set','Pocket Starter Kit','Simple Pod Bundle','Everyday Starter Kit'],
-      'Nic Salts':['Nic Salt Bottle','Berry Nic Salt','Mint Nic Salt','Citrus Nic Salt','Classic Nic Salt','Cool Nic Salt','Fruit Nic Salt','Smooth Nic Salt','Tropical Nic Salt','Mixed Nic Salt'],
-      'Freebase Juice':['Freebase Juice Bottle','Fruit Freebase Blend','Mint Freebase Blend','Citrus Freebase Blend','Berry Freebase Blend','Classic Freebase Blend','Cool Freebase Blend','Tropical Freebase Blend','Vanilla Freebase Blend','Smooth Freebase Blend'],
-      'Zero Nicotine':['Zero-Nicotine E-Liquid','Fruit Zero Blend','Mint Zero Blend','Citrus Zero Blend','Berry Zero Blend','Classic Zero Blend','Cool Zero Blend','Tropical Zero Blend','Vanilla Zero Blend','Smooth Zero Blend'],
-      'Wax & Dabs':['Dab Tool Kit','Quartz Accessory','Storage Jar Set','Silicone Mat','Cleaning Tool','Glass Dab Accessory','Travel Dab Case','Tool Set','Accessory Stand','Storage Organizer'],
-      'Live Resin':['Live Resin Accessory','Concentrate Storage Jar','Glass Storage Set','Dab Tool Set','Storage Case','Cleaning Accessory','Glass Accessory','Travel Container','Accessory Bundle','Organizer Set'],
-      'Cartridges':['Cartridge Battery','Compact Cartridge Case','USB-C Battery','Protective Cartridge Case','Battery Accessory','Travel Cartridge Case','Storage Tube','Battery Charger','Cartridge Holder','Accessory Set'],
-      'Bongs':['Classic Beaker Bong','Straight Tube Bong','Mini Glass Bong','Ice-Pinch Bong','Color Accent Bong','Compact Water Pipe','Thick Glass Bong','Artisan Glass Bong','Everyday Bong','Glass Water Pipe'],
-      'Dab Rigs':['Compact Dab Rig','Glass Dab Rig','Mini Rig','Recycler-Style Rig','Classic Dab Rig','Travel Rig','Thick Glass Rig','Simple Rig','Accessory Rig Set','Everyday Dab Rig'],
-      'Hand Pipes':['Classic Hand Pipe','Pocket Glass Pipe','Color Accent Pipe','Textured Hand Pipe','Mini Hand Pipe','Art Glass Pipe','Simple Glass Pipe','Travel Pipe','Everyday Hand Pipe','Glass Pipe Set'],
-      'Bubblers':['Mini Bubbler','Classic Glass Bubbler','Pocket Bubbler','Color Accent Bubbler','Compact Bubbler','Thick Glass Bubbler','Art Glass Bubbler','Simple Bubbler','Travel Bubbler','Everyday Bubbler'],
-      'Grinders':['Aluminum Grinder','4-Piece Grinder','Compact Grinder','Metal Grinder','Textured Grinder','Pocket Grinder','Classic Grinder','Color Accent Grinder','Travel Grinder','Grinder Set'],
-      'Rolling Papers':['Classic Rolling Papers','King-Size Papers','Slim Papers','Unbleached Papers','Paper Tips Set','Rolling Paper Bundle','Natural Papers','Compact Paper Pack','Rolling Tips Pack','Paper Accessory Set'],
-      'Trays & Storage':['Rolling Tray','Storage Box','Travel Storage Case','Metal Tray','Compact Tray','Organizer Box','Accessory Pouch','Stackable Storage','Pocket Container','Tray Bundle'],
-      'Brands':['Casper Essentials','Cloud Series','Glassworks Collection','Everyday Accessories','Premium Collection','Pocket Series','Classic Collection','Studio Glass','Travel Essentials','Signature Collection'],
-      'Deals':['Value Bundle','Starter Bundle Deal','Accessory Bundle Deal','Everyday Essentials Deal','Glassware Special','Storage Bundle','Pocket Kit Deal','Best Value Set','Featured Accessory Deal','Casper Combo Pack']
-    };
-
-    const colors=['Midnight Black','Neon Lime','Purple Rush','Crystal Clear','Ocean Blue','Sunset Orange','Smoke Grey','Arctic White','Rose Violet','Classic Silver'];
-    const allProducts=[];
-    navCategories.forEach((cat,ci)=>{
-      const names=productTypes[cat]||productTypes['Accessories'];
-      for(let i=0;i<10;i++) {
-        const base=8.99+((ci*7+i*11)%76)+0.99;
-        allProducts.push({
-          id:`nav-${ci}-${i}`,
-          title:`${colors[i]} ${names[i]}`,
-          category:cat,
-          image:`assets/products/nav-${ci}-${i}.svg`,
-          price:Number(base.toFixed(2)),
-          oldPrice:Number((15.99+((ci*9+i*13)%89)+0.99).toFixed(2)),
-          rating:(4.5+((ci+i)%6)/10).toFixed(1),
-          reviews:17+((ci*37+i*19)%420),
-          tag:(i%3===0?'FEATURED':i%3===1?'POPULAR':'VALUE PICK'),
-          desc:`Premium-style sample catalog item for ${cat}. This demo product includes a storefront-ready description, pricing, rating and review information.`,
-          color:colors[i]
-        });
-      }
-    });
-
-    const main=document.querySelector('main');
-    if(!main) return;
-    let root=document.getElementById('casper-nav-store');
-    if(!root){
-      root=document.createElement('section');
-      root.id='casper-nav-store';
-      root.className='casper-nav-store';
-      root.hidden=true;
-      main.appendChild(root);
-    }
-
-    const homeSections=document.createElement('div');
-    homeSections.id='casper-nav-home-sections';
-    const homeCats=Object.keys(categoryGroups);
-
-    function money(n){return '$'+Number(n).toFixed(2)}
-    function esc(v){return String(v).replace(/[&<>'"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]))}
-    function card(p){
-      return `<article class="cns-card" data-cns-id="${p.id}">
-        <button class="cns-image" type="button" aria-label="View ${esc(p.title)}">
-          <span>${esc(p.tag)}</span><img src="${p.image}" alt="${esc(p.title)}" loading="lazy" onerror="this.onerror=null;this.src='assets/products/nav-0-0.svg';">
-        </button>
-        <div class="cns-card-body">
-          <div class="cns-rating">★★★★★ <small>${p.rating} · ${p.reviews} reviews</small></div>
-          <h3>${esc(p.title)}</h3>
-          <p class="cns-price">${money(p.price)} <del>${money(p.oldPrice)}</del></p>
-          <button class="cns-view" type="button">VIEW PRODUCT</button>
-        </div>
-      </article>`;
-    }
-
-    function section(cat){
-      const items=getProductsForPage(cat);
-      return `<section class="cns-home-section" data-cns-main-category="${esc(cat)}">
-        <div class="cns-section-head"><div><span>CASPER SMOKE SHOP</span><h2>${esc(cat)}</h2><small class="cns-section-sub">${items.length} products across this collection</small></div><a href="?category=${encodeURIComponent(cat)}">VIEW ALL →</a></div>
-        <div class="cns-grid">${items.slice(0,5).map(card).join('')}
-          <a class="cns-more" href="?category=${encodeURIComponent(cat)}"><b>+</b><strong>SHOW MORE</strong><small>View all ${items.length} products</small></a>
-        </div>
-      </section>`;
-    }
-    homeSections.innerHTML=homeCats.map(section).join('');
-    const oldHome=document.getElementById('casper-nav-home-sections');
-    if(oldHome) oldHome.remove();
-    const hero=main.querySelector('.cc-hero');
-    if(hero) hero.insertAdjacentElement('afterend',homeSections);
-    else main.insertBefore(homeSections,main.firstElementChild || root);
-    const homeEl=document.getElementById('casper-nav-home-sections');
-
-    function enterCollectionMode(){
-      document.body.classList.add('casper-nav-category-mode');
-      root.hidden=false;
-      homeEl.hidden=true;
-    }
-    function leaveCollectionMode(){
-      document.body.classList.remove('casper-nav-category-mode');
-      root.hidden=true;
-      homeEl.hidden=false;
-    }
-
-    function resolveGroup(cat){
-      const key=String(cat||'').trim();
-      const upper=key.toUpperCase();
-      if(upper==='VAPES') return 'Vape Kits';
-      if(upper==='CIGARS') return 'Deals';
-      if(upper==='SHOP ALL') return 'SHOP ALL';
-      if(categoryGroups[upper]) return upper;
-      return key;
-    }
-
-    function getProductsForPage(cat){
-      const key=resolveGroup(cat);
-      if(key==='SHOP ALL') return allProducts.slice();
-      if(categoryGroups[key]) {
-        const cats=categoryGroups[key];
-        return allProducts.filter(p=>cats.includes(p.category));
-      }
-      return allProducts.filter(p=>p.category===key);
-    }
-
-    function productPage(cat,query=''){
-      const pageName=resolveGroup(cat);
-      let list=getProductsForPage(pageName);
-      const q=String(query||'').trim().toLowerCase();
-      if(q) list=list.filter(p=>`${p.title} ${p.category} ${p.color} ${p.tag}`.toLowerCase().includes(q));
-
-      enterCollectionMode();
-      root.innerHTML=`<div class="cns-wrap">
-        <div class="cns-page-head">
-          <div><span>CASPER SMOKE SHOP / COLLECTION</span><h1>${esc(pageName)}</h1><p>${list.length} products available in this collection</p></div>
-          <a href="./" class="cns-back">← HOME</a>
-        </div>
-        <div class="cns-breadcrumb">HOME / ${esc(pageName)}</div>
-        <label class="cns-search">SEARCH THIS COLLECTION <input id="cns-search" type="search" value="${esc(query)}" placeholder="Search products in ${esc(pageName)}..."></label>
-        <div class="cns-grid cns-page-grid" id="cns-products">${list.map(card).join('')||'<p class="cns-empty">No matching products. Try another search.</p>'}</div>
-      </div>`;
-      window.scrollTo({top:0,behavior:'smooth'});
-    }
-
-    function detail(p){
-      enterCollectionMode();
-      const rec=allProducts.filter(x=>x.category===p.category&&x.id!==p.id).slice(0,5);
-      root.innerHTML=`<div class="cns-wrap">
-        <a href="?category=${encodeURIComponent(p.category)}" class="cns-back">← BACK TO ${esc(p.category.toUpperCase())}</a>
-        <div class="cns-breadcrumb">HOME / ${esc(p.category)} / ${esc(p.title)}</div>
-        <div class="cns-detail">
-          <div class="cns-detail-art"><div class="cns-art cns-art--image"><span class="cns-detail-tag">${esc(p.tag)}</span><img src="${p.image}" alt="${esc(p.title)}" onerror="this.onerror=null;this.src='assets/products/nav-0-0.svg';"></div></div>
-          <div class="cns-detail-info"><span class="cns-kicker">${esc(p.tag)}</span><h1>${esc(p.title)}</h1><div class="cns-rating">★★★★★ <small>${p.rating} · ${p.reviews} reviews</small></div><h2>${money(p.price)} <del>${money(p.oldPrice)}</del></h2><p>${esc(p.desc)}</p><div class="cns-detail-specs"><div><strong>Category</strong><span>${esc(p.category)}</span></div><div><strong>Customer rating</strong><span>${p.rating}/5</span></div><div><strong>Reviews</strong><span>${p.reviews} verified-style reviews</span></div><div><strong>Offer</strong><span>${esc(p.tag)}</span></div></div><button class="cns-view cns-detail-cta" type="button" data-cns-backcat="${esc(p.category)}">CONTINUE SHOPPING</button><small class="cns-demo-note">Demo product data for storefront development.</small></div>
-        </div>
-        <div class="cns-section-head"><div><span>RELATED PRODUCTS</span><h2>You may also like</h2></div><a href="?category=${encodeURIComponent(p.category)}">VIEW CATEGORY →</a></div>
-        <div class="cns-grid cns-related-grid">${rec.map(card).join('')}</div>
-      </div>`;
-      window.scrollTo({top:0,behavior:'smooth'});
-    }
-
-    function routeFromUrl(){
-      const raw=new URLSearchParams(location.search).get('category');
-      if(!raw){leaveCollectionMode();return;}
-      productPage(decodeURIComponent(raw));
-    }
-
-    // Explicitly route every navbar main/subcategory link. This runs before the
-    // older navigation compatibility handler so submenu items always open their
-    // own product listing page instead of only closing the dropdown.
-    document.addEventListener('click', function(e){
-      const link=e.target.closest('.cc-nav a, .cc-mnav__group a');
-      if(!link) return;
-      const text=(link.textContent||'').replace(/[⌄→]/g,'').trim();
-      const allNames=Object.keys(categoryGroups).concat(navCategories);
-      const match=allNames.find(name=>name.toLowerCase()===text.toLowerCase());
-      if(!match) return;
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      if(typeof closeAllDrawers==='function') closeAllDrawers();
-      history.pushState({},'',`?category=${encodeURIComponent(match)}`);
-      productPage(match);
-    }, true);
-
-    document.addEventListener('click',e=>{
-      const a=e.target.closest('a');
-      if(a){
-        const label=(a.textContent||'').replace(/[+→⌄]/g,'').trim();
-        const href=a.getAttribute('href')||'';
-        const isNavLink=!!a.closest('.cc-nav') || !!a.closest('.cc-mnav');
-        const normalized=label.toUpperCase();
-        if(isNavLink && (categoryGroups[normalized] || navCategories.some(c=>c.toUpperCase()===normalized))){
-          e.preventDefault();
-          const cat=normalized;
-          history.pushState({},'',`?category=${encodeURIComponent(cat)}`);
-          productPage(cat);
-          return;
-        }
-        if(a.classList.contains('cns-more') || a.closest('.cns-home-section .cns-section-head')){
-          const hrefCat=new URL(a.href,location.href).searchParams.get('category');
-          if(hrefCat){e.preventDefault();history.pushState({},'',`?category=${encodeURIComponent(hrefCat)}`);productPage(hrefCat);return;}
-        }
-      }
-
-      const cardEl=e.target.closest('[data-cns-id]');
-      if(cardEl){
-        const p=allProducts.find(x=>x.id===cardEl.dataset.cnsId);
-        if(p){e.preventDefault();detail(p);return;}
-      }
-      const back=e.target.closest('[data-cns-backcat]');
-      if(back){e.preventDefault();history.pushState({},'',`?category=${encodeURIComponent(back.dataset.cnsBackcat)}`);productPage(back.dataset.cnsBackcat);}
-    });
-
-    document.addEventListener('input',e=>{
-      if(e.target.id==='cns-search'){
-        const q=e.target.value;
-        const cat=root.querySelector('.cns-page-head h1')?.textContent||'SHOP ALL';
-        const cursor=q.length;
-        productPage(cat,q);
-        const inp=document.getElementById('cns-search');
-        if(inp){inp.focus();inp.setSelectionRange(cursor,cursor);}
-      }
-    });
-
-    document.querySelectorAll('.cc-hsearch, .cc-mnav__search').forEach(form=>form.addEventListener('submit',e=>{
-      const q=form.querySelector('input[type="search"]')?.value.trim().toLowerCase();
-      if(!q)return;
-      const exact=navCategories.find(c=>c.toLowerCase()===q);
-      const alias=q.includes('vape')?'VAPES & DISPOSABLES':q.includes('e-liquid')||q.includes('eliquid')?'E-LIQUIDS':q.includes('concentrate')?'CONCENTRATES':q.includes('glass')?'GLASS':q.includes('accessor')?'ACCESSORIES':q.includes('deal')?'DEALS':q.includes('brand')?'BRANDS':null;
-      const cat=exact||alias;
-      if(cat){e.preventDefault();history.pushState({},'',`?category=${encodeURIComponent(cat)}`);productPage(cat);return;}
-      const matches=allProducts.some(p=>`${p.title} ${p.category} ${p.color}`.toLowerCase().includes(q));
-      if(matches){e.preventDefault();history.pushState({},'',`?category=SHOP%20ALL`);productPage('SHOP ALL',q);}
-    }));
-
-    window.addEventListener('popstate',routeFromUrl);
-    routeFromUrl();
   })();
 
 });

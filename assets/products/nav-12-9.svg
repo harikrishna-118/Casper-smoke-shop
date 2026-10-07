@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 440">
+<defs><radialGradient id="bg"><stop offset="0" stop-color="#242936"/><stop offset="1" stop-color="#0b0c10"/></radialGradient></defs>
+<rect width="440" height="440" rx="28" fill="url(#bg)"/>
+<circle cx="70" cy="70" r="42" fill="#cbd5e1" fill-opacity=".12"/>
+<text x="220" y="38" text-anchor="middle" font-family="Arial,sans-serif" font-size="15" font-weight="700" fill="#cbd5e1" letter-spacing="2">LIVE RESIN</text>
+<ellipse cx="220" cy="310" rx="105" ry="30" fill="#11131a"/><rect x="130" y="130" width="180" height="180" rx="32" fill="#cbd5e1"/><rect x="150" y="150" width="140" height="80" rx="18" fill="#11131a"/><circle cx="220" cy="270" r="25" fill="#fbbf24"/>
+<text x="220" y="390" text-anchor="middle" font-family="Arial,sans-serif" font-size="14" font-weight="700" fill="#f4f4f5">CASPER 10 PRODUCT VISUAL</text>
+</svg>
