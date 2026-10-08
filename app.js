@@ -444,6 +444,500 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 ];
   const casperVcProducts = [...casperVapeProducts, ...casperCigarProducts];
+  // ==========================================
+  // FRONTEND CATALOG COMPLIANCE DATA MODEL
+  // Presentation/validation layer only; authoritative values belong to the backend.
+  // ==========================================
+  const FRONTEND_COMPLIANCE_CONFIG = Object.freeze({
+    minimumAge: 21,
+    freeShippingThreshold: 200,
+    taxRate: 0.08,
+    defaultShipping: 9.99,
+    outOfStateShipping: 14.99,
+    lowStockThreshold: 5,
+    restrictedStates: [], // Configure from the store's actual legal shipping policy.
+    promoCodes: {
+      CASPER20: { type: 'percent', value: 0.20, firstOrderOnly: true, usageLimit: 1, expires: '2099-12-31' },
+      SAVE10: { type: 'percent', value: 0.10, usageLimit: 1, expires: '2025-12-31' },
+      WELCOME5: { type: 'fixed', value: 5, usageLimit: 2, expires: '2099-12-31' }
+    }
+  });
+
+  const imageFallback = (title) =>
+    `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="900" height="900"><rect width="100%" height="100%" fill="#111318"/><text x="50%" y="48%" dominant-baseline="middle" text-anchor="middle" fill="#8cffb0" font-family="Arial" font-size="28">CASPER SMOKE SHOP</text><text x="50%" y="54%" dominant-baseline="middle" text-anchor="middle" fill="#8b919c" font-family="Arial" font-size="18">${String(title).replace(/[<>&"]/g,'')}</text></svg>`)}`;
+
+  // ==========================================
+  // SUBCATEGORY DEMO CATALOG
+  // Every navbar subcategory has its own dummy records so
+  // clicking a submenu never lands on an empty catalog.
+  // ==========================================
+  const subcategoryDefinitions = [
+    ['Vape Kits', 'Vape Kits', 'CloudPeak', 39.99],
+    ['Disposable Vapes', 'Disposable Vapes', 'NovaSmoke', 19.99],
+    ['Pod Systems', 'Vapes', 'Pod Systems', 34.99],
+    ['Starter Kits', 'Vapes', 'Starter Kits', 44.99],
+    ['Nic Salts', 'E-Liquids', 'Nic Salts', 17.99],
+    ['Freebase Juice', 'E-Liquids', 'Freebase Juice', 16.99],
+    ['Zero Nicotine', 'E-Liquids', 'Zero Nicotine', 14.99],
+    ['Wax & Dabs', 'Concentrates', 'Wax & Dabs', 22.00],
+    ['Live Resin', 'Concentrates', 'Live Resin', 22.00],
+    ['Cartridges', 'Concentrates', 'Cartridges', 24.99],
+    ['Bongs', 'Glass', 'Bongs', 59.99],
+    ['Dab Rigs', 'Glass', 'Dab Rigs', 69.99],
+    ['Hand Pipes', 'Glass', 'Hand Pipes', 29.99],
+    ['Bubblers', 'Glass', 'Bubblers', 49.99],
+    ['Grinders', 'Accessories', 'Grinders', 19.99],
+    ['Rolling Papers', 'Accessories', 'Rolling Papers', 3.99],
+    ['Trays & Storage', 'Accessories', 'Trays & Storage', 14.99]
+  ];
+
+  // Real product photography URLs used for the demo catalog. These replace
+  // the old generated SVG placeholders so product cards and quick view show
+  // actual product photos instead of the Casper logo/fallback artwork.
+  const REAL_PRODUCT_IMAGES = {
+    vape: [
+      'https://www.vapevilla.in/cdn/shop/files/WhatsAppImage2026-06-20at6.40.29PM.jpg?v=1781961279&width=719',
+      'https://www.vapevilla.in/cdn/shop/files/WhatsApp_Image_2026-06-20_at_6.40.30_PM_1.jpg?v=1781961293&width=719',
+      'https://www.vapevilla.in/cdn/shop/files/WhatsApp_Image_2026-06-20_at_6.40.30_PM.jpg?v=1781961288&width=719',
+      'https://www.vapebill.com/image/cache/catalog/Products/202306092310219191-800x800.jpg',
+      'https://www.vapezilla.com/cdn/shop/files/Lost-Mary-Os-5000-Cosmic-Edition-Banana-Split.png?v=1707743057&width=900',
+      'https://www.vapezilla.com/cdn/shop/files/Lost-Mary-Os-5000-Cosmic-Edition-Berry-Cherry.png?v=1707743057&width=900',
+      'https://www.no1ejuice.com/cdn/shop/files/freemax-galex-nano-pod-kit-gunmetal_ba512a6b-db89-44b2-985c-f1d5af65ba1a_800x.png?v=1698660290',
+      'https://www.edgevaping.com/cdn/shop/files/VaporessoLuxeXRMaxBlack.webp?v=1772020588&width=1214',
+      'https://www.alivape.com/cdn/shop/products/FreeMax-Onnix-2-Pod-Kit-Grey.jpg?v=1633800819',
+      'https://vapeuk.co.uk/media/catalog/product/cache/bc83b92129d09e9708f3c9bb98ddc6b7/b/a/barbie--geekvape-wenax-q-mini-pod-vape-kit_1.jpg'
+    ],
+    disposable: [
+      'https://e-xhale.com/cdn/shop/files/2000_Mangolicious_Product_Image_3.jpg?v=1746176957&width=1946',
+      'https://westcoastvapesupply.com/cdn/shop/products/KeepIt100BarsBacco.jpg?v=1685791973',
+      'https://bayvape.ca/cdn/shop/files/GEEK-BAR-Pulse---Blue-Razz-Ice_453d030c-d448-453a-b091-4b371b421728.jpg?v=1762805290',
+      'https://cdn11.bigcommerce.com/s-vux44hwuka/images/stencil/1280x1280/products/980/1796/19726-RED__10460.1724924850.jpg?c=1'
+    ],
+    eliquid: [
+      'https://shopby-images.cdn-nhncommerce.com/Mall-No-gCLi/20250909/153533.192867496/SC-%EB%AA%A8%EC%BD%94%20%EB%A6%AC%EC%96%BC%EC%A5%AC%EC%8A%A4.png',
+      'https://commons.wikimedia.org/wiki/Special:FilePath/E-liquid_bottle.jpeg',
+      'https://commons.wikimedia.org/wiki/Special:FilePath/E-Liquid_with_device.jpg'
+    ],
+    bong: [
+      'https://cannadevices.com/cdn/shop/articles/12in_RoundBase.png?v=1591317431'
+    ],
+    rig: [
+      'https://mjarsenal.com/cdn/shop/products/PinkUrsa1.png?v=1650921988',
+      'https://smoketime.ca/cdn/shop/files/MX-308-3_A.webp?v=1750631251'
+    ],
+    handPipe: [
+      'https://rrrwholesale.com/cdn/shop/files/3_InnerSwirlColorBigHeadThickHeavyDutyGlassHandPipe_1024x.jpg?v=1732086569'
+    ],
+    bubbler: [
+      'https://fatbuddhaglass.com/cdn/shop/files/bubbler-lumina-bubbler-mj-arsenal-1234279246_1024x.jpg?v=1777054450'
+    ],
+    grinder: [
+      'https://herbalizestore.co.uk/cdn/shop/files/Herb-Ripper-4Piece-grinder.jpg?v=1770741052',
+      'https://rchgifts.com/cdn/shop/products/grinder_2400x.jpg?v=1633719224'
+    ],
+    papers: [
+      'https://images.gopuff.com/blob/gopuffcatalogstorageprod/catalog-images-container/resize/cf/version%3D1_0%2Cformat%3Dauto%2Cfit%3Dscale-down%2Cwidth%3D800%2Cheight%3D800/fdc21dd8-d0f4-4ccf-a61e-177c87c6ddd9.png'
+    ],
+    tray: [
+      'https://pipedreams.co/cdn/shop/products/raw-classic-rolling-trays-rolling-trays-war00115-musa01-esd-official-28516443979914_1200x_jpg.webp?v=1679341769',
+      'https://stokedct.com/cdn/shop/files/raw-mix-rolling-trays-rolling-trays-war00109-musa01-esd-official-28526784086154_2048x_ffc2b71f-a0d5-485d-84aa-07b97aefa857.webp?v=1768519459',
+      'https://mjsupplyco.ca/cdn/shop/products/RAW-TRAY-NAT-2-510x510.jpg?v=1634856057'
+    ]
+  };
+
+  const imagePoolForSubcategory = (subcat) => {
+    const key = String(subcat).toLowerCase();
+    if (key === 'bongs') return REAL_PRODUCT_IMAGES.bong;
+    if (key === 'dab rigs') return REAL_PRODUCT_IMAGES.rig;
+    if (key === 'hand pipes') return REAL_PRODUCT_IMAGES.handPipe;
+    if (key === 'bubblers') return REAL_PRODUCT_IMAGES.bubbler;
+    if (key === 'grinders') return REAL_PRODUCT_IMAGES.grinder;
+    if (key === 'rolling papers') return REAL_PRODUCT_IMAGES.papers;
+    if (key === 'trays & storage') return REAL_PRODUCT_IMAGES.tray;
+    if (key.includes('e-liquid') || key.includes('nic salts') || key.includes('freebase') || key.includes('zero nicotine')) return REAL_PRODUCT_IMAGES.eliquid;
+    if (key === 'disposable vapes') return REAL_PRODUCT_IMAGES.disposable;
+    if (key.includes('vape') || key.includes('pod') || key.includes('starter')) return REAL_PRODUCT_IMAGES.vape;
+    if (key.includes('wax') || key.includes('resin') || key.includes('cartridge')) return REAL_PRODUCT_IMAGES.rig;
+    return REAL_PRODUCT_IMAGES.vape;
+  };
+
+  const realPhotoFor = (subcat, productNumber, variantNumber = 0) => {
+    const key = String(subcat).toLowerCase();
+    let query = 'smoke shop product';
+    if (key.includes('vape') || key.includes('pod') || key.includes('starter')) query = 'vape device,product';
+    else if (key.includes('e-liquid') || key.includes('nic salts') || key.includes('freebase') || key.includes('zero nicotine')) query = 'e-liquid bottle,product';
+    else if (key.includes('bong')) query = 'glass water pipe,product';
+    else if (key.includes('rig')) query = 'glass dab rig,product';
+    else if (key.includes('hand pipe')) query = 'glass hand pipe,product';
+    else if (key.includes('bubbler')) query = 'glass bubbler,product';
+    else if (key.includes('grinder')) query = 'herb grinder,product';
+    else if (key.includes('rolling paper')) query = 'rolling papers,product';
+    else if (key.includes('tray')) query = 'rolling tray,product';
+    else if (key.includes('wax') || key.includes('resin') || key.includes('cartridge')) query = 'vape cartridge,product';
+    return `https://loremflickr.com/900/900/${encodeURIComponent(query)}?lock=${(productNumber * 31) + variantNumber}`;
+  };
+
+  const variantSpecsForSubcategory = (subcat, basePrice) => {
+    const key = String(subcat).toLowerCase();
+    if (['wax & dabs','live resin'].includes(key)) return [
+      ['20 g', 22], ['50 g', 50], ['100 g', 90], ['200 g', 165]
+    ];
+    if (key === 'cartridges') return [
+      ['0.5 g', 24.99], ['1 g', 39.99], ['2 g', 69.99], ['3 g', 94.99]
+    ];
+    if (key.includes('e-liquid') || ['nic salts','freebase juice','zero nicotine'].includes(key)) return [
+      ['20 ml', 22], ['50 ml', 50], ['100 ml', 90], ['120 ml', 105]
+    ];
+    if (['bongs','dab rigs','hand pipes','bubblers'].includes(key)) return [
+      ['6 inch', Number(basePrice.toFixed(2))], ['8 inch', Number((basePrice + 15).toFixed(2))], ['12 inch', Number((basePrice + 35).toFixed(2))], ['16 inch', Number((basePrice + 60).toFixed(2))]
+    ];
+    if (key === 'grinders') return [['2 inch',19.99],['2.5 inch',24.99],['3 inch',34.99],['4 inch',44.99]];
+    if (key === 'rolling papers') return [['25 sheets',3.99],['50 sheets',6.99],['100 sheets',10.99],['200 sheets',17.99]];
+    if (key === 'trays & storage') return [['Small',14.99],['Medium',19.99],['Large',29.99],['XL',39.99]];
+    if (key === 'disposable vapes') return [['2 ml',19.99],['5 ml',29.99],['10 ml',39.99],['20 ml',54.99]];
+    if (key.includes('vape kits') || key.includes('pod systems') || key.includes('starter kits')) return [['Standard',Number(basePrice.toFixed(2))],['Small',Number((basePrice+8).toFixed(2))],['Medium',Number((basePrice+18).toFixed(2))],['Large',Number((basePrice+30).toFixed(2))]];
+    return [['Standard',Number(basePrice.toFixed(2))],['Large',Number((basePrice+10).toFixed(2))]];
+  };
+
+  const casperSubcategoryProducts = subcategoryDefinitions.flatMap((def, di) => {
+    const [subcat, category, label, basePrice] = def;
+    const imagePool = imagePoolForSubcategory(subcat);
+    const specs = variantSpecsForSubcategory(subcat, basePrice);
+    return Array.from({ length: 30 }, (_, index) => index + 1).map((n) => {
+      const id = `sd${String(di + 1).padStart(2,'0')}${n}`;
+      const title = `${label} Demo Product ${String(n).padStart(2, '0')}`;
+      const variantSpecs = specs.map(([value, variantPrice], vi) => ({
+        type: /g|ml|sheets|inch/i.test(value) ? (/ml/i.test(value) ? 'volume' : /g/i.test(value) ? 'weight' : 'size') : 'size',
+        value,
+        size: value,
+        weight: /g/i.test(value) ? value : undefined,
+        price: Number(variantPrice.toFixed(2)),
+        salePrice: Number(variantPrice.toFixed(2)),
+        inventory: Math.max(0, 4 + ((n * 7 + di * 11 + vi * 3) % 48)),
+        image: realPhotoFor(subcat, n, vi)
+      }));
+      const price = variantSpecs[0].price;
+      return {
+        id,
+        title,
+        category,
+        subcategory: subcat,
+        price,
+        originalPrice: Number((price * 1.15).toFixed(2)),
+        image: realPhotoFor(subcat, n, 0),
+        rating: Number((4.1 + ((n - 1) % 9) * 0.1).toFixed(1)),
+        reviews: 20 + di * 5 + n * 3,
+        tag: n === 1 ? 'FEATURED' : (n % 5 === 0 ? 'BESTSELLER' : 'NEW'),
+        desc: `Demo ${subcat} product for Casper Smoke Shop navigation and frontend QA testing.`,
+        flavors: subcat === 'Rolling Papers' ? ['Classic', 'Unbleached'] : ['Classic', 'Fresh', 'Ice'],
+        nics: ['N/A'],
+        manufacturer: 'Casper Demo Manufacturing',
+        brand: 'Casper Demo',
+        weightOz: 3 + ((n - 1) % 12),
+        inventory: variantSpecs.reduce((m, v) => Math.max(m, v.inventory), 0),
+        variants: variantSpecs
+      };
+    });
+  });
+
+
+  // ==========================================
+  // NAVBAR DUMMY DATA — BRANDS + DEALS
+  // Every direct navbar destination has visible demo products.
+  // ==========================================
+  const casperBrandProducts = [
+    ['CloudPeak', 'Vape Kits', 42.99], ['NovaSmoke', 'Disposable Vapes', 21.99],
+    ['Casper Select', 'E-Liquids', 18.99], ['PeakGlass', 'Glass', 64.99],
+    ['CloudForge', 'Concentrates', 27.99], ['Casper Essentials', 'Accessories', 12.99],
+    ['VaporEdge', 'Vapes', 36.99], ['SmokeCraft', 'Glass', 54.99]
+  ].flatMap(([brand, category, price], bi) => Array.from({length: 6}, (_, i) => {
+    const n = i + 1;
+    const id = `brand${String(bi + 1).padStart(2,'0')}${n}`;
+    return {
+      id, title: `${brand} ${category} Collection ${String(n).padStart(2,'0')}`,
+      category, subcategory: category, brand, manufacturer: `${brand} Demo Manufacturing`,
+      price: Number((price + i * 2.5).toFixed(2)), originalPrice: Number((price + i * 2.5 + 12).toFixed(2)),
+      image: realPhotoFor(category, bi * 10 + n, 0), rating: Number((4.2 + (i % 7) * .1).toFixed(1)),
+      reviews: 35 + i * 8, tag: i === 0 ? 'FEATURED BRAND' : 'BRAND PICK',
+      desc: `Demo ${brand} product for the Casper Smoke Shop Brands section.`,
+      flavors: ['Classic','Fresh','Ice'], nics: ['N/A'], inventory: 18 + i * 4,
+      variants: []
+    };
+  }));
+
+  const casperDealProducts = Array.from({length: 30}, (_, i) => {
+    const n = i + 1;
+    const categories = ['Vape Kits','Disposable Vapes','E-Liquids','Glass','Concentrates','Accessories'];
+    const category = categories[i % categories.length];
+    const base = [39.99,19.99,16.99,59.99,24.99,12.99][i % 6];
+    const sale = Number((base * (0.70 + (i % 4) * 0.05)).toFixed(2));
+    const id = `deal${String(n).padStart(3,'0')}`;
+    return {
+      id, title: `Casper Deal Product ${String(n).padStart(2,'0')}`,
+      category, subcategory: category, brand: 'Casper Deals', manufacturer: 'Casper Demo Manufacturing',
+      price: sale, originalPrice: base, salePrice: sale, compareAt: base,
+      image: realPhotoFor(category, 100 + n, 0), rating: Number((4.1 + (i % 9) * .1).toFixed(1)),
+      reviews: 25 + i * 2, tag: i < 5 ? 'HOT DEAL' : 'DEAL',
+      desc: `Demo discounted ${category} product for the Casper Smoke Shop Deals section.`,
+      flavors: ['Classic','Fresh'], nics: ['N/A'], inventory: 15 + (i % 20), variants: []
+    };
+  });
+
+  const frontendDemoProducts = [
+    ...productCatalog, ...casperVcProducts, ...casperSubcategoryProducts,
+    ...casperBrandProducts, ...casperDealProducts
+  ];
+
+  const frontendProducts = frontendDemoProducts.map((p, index) => {
+    const id = String(p.id);
+    const isRestricted = /vape|cigar|nic|e-liquid|concentrate|disposable|smoke/i.test(`${p.category} ${p.title}`);
+    const baseInventory = 12 + ((index * 17) % 39);
+    const slug = `${String(p.title).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g,'')}-${id.toLowerCase()}`;
+    return {
+      ...p,
+      productId: id,
+      sku: `CAS-${id.toUpperCase()}`,
+      upc: `DEMO-${String(index + 1).padStart(8,'0')}`,
+      manufacturer: p.manufacturer || 'Catalog Manufacturer',
+      brand: p.brand || 'Casper Collection',
+      shortDescription: p.shortDescription || p.desc || 'Premium Casper Smoke Shop product.',
+      fullDescription: p.fullDescription || p.desc || 'Product details are managed by the catalog system.',
+      subcategory: p.subcategory || p.category,
+      tags: Array.from(new Set([p.tag, p.category, ...(p.flavors || []), ...(p.nics || [])].filter(Boolean))),
+      slug,
+      status: p.status || 'Active',
+      published: true,
+      featured: /BESTSELLER|PREMIUM|NEW|POPULAR/i.test(p.tag || ''),
+      minAge: isRestricted ? 21 : 0,
+      ageRestricted: isRestricted,
+      allowedStates: Array.isArray(p.allowedStates) ? p.allowedStates : [],
+      cost: Number(p.cost || (Number(p.price) * 0.55).toFixed(2)),
+      retailPrice: Number(p.price),
+      salePrice: Number(p.price),
+      compareAt: Number(p.originalPrice || p.oldPrice || p.price),
+      recommendedPrice: Number(p.originalPrice || p.price),
+      margin: Number((Number(p.price) - Number(p.cost || Number(p.price) * 0.55)).toFixed(2)),
+      marginPct: Number((((Number(p.price) - Number(p.cost || Number(p.price) * 0.55)) / Math.max(Number(p.price), 0.01)) * 100).toFixed(2)),
+      weightOz: Number(p.weightOz || (p.category === 'Cigars' ? 2 : 8)),
+      inventory: Number(p.inventory ?? baseInventory),
+      reserved: Number(p.reserved || 0),
+      backorderAllowed: false,
+      variants: p.variants?.length ? p.variants : [
+        ...(p.flavors || []).filter(x => x !== 'N/A').slice(0, 6).map((x, i) => ({ type: 'flavor', value: x, sku: `CAS-${id.toUpperCase()}-F${i+1}`, price: Number(p.price) })),
+        ...(p.nics || []).filter(x => x !== 'N/A').slice(0, 5).map((x, i) => ({ type: 'strength', value: x, sku: `CAS-${id.toUpperCase()}-S${i+1}`, price: Number(p.price) }))
+      ],
+      images: [p.image].filter(Boolean),
+      image: p.image || imageFallback(p.title)
+    };
+  });
+
+  // Apply real photography to any legacy product that still points to the Casper logo.
+  // Existing vendor/product photo URLs are kept when already present.
+  frontendProducts.forEach((p, index) => {
+    const isPlaceholder = !p.image || /casper-mascot-logo|data:image\/svg/i.test(String(p.image));
+    if (isPlaceholder) {
+      const pool = imagePoolForSubcategory(p.subcategory || p.category || 'Vape Kits');
+      p.image = realPhotoFor(p.subcategory || p.category || 'Vape Kits', index + 1, 0);
+      p.images = [p.image];
+      p.gallery = [p.image];
+      p.thumbnail = p.image;
+    }
+  });
+
+  // Give every catalog item a clear size/weight-driven price ladder.
+  // Selecting an option on the product details modal therefore changes the
+  // displayed price immediately (e.g. 20 g = $22, 50 g = $50).
+  frontendProducts.forEach((p, index) => {
+    const specs = variantSpecsForSubcategory(p.subcategory || p.category || 'Vape Kits', Number(p.price || p.salePrice || 19.99));
+    p.variants = specs.map(([value, variantPrice], vi) => {
+      const existing = (p.variants || [])[vi] || {};
+      const pool = imagePoolForSubcategory(p.subcategory || p.category || 'Vape Kits');
+      const inventory = Math.max(8, Number(existing.inventory ?? (8 + ((index * 7 + vi * 5) % 46))));
+      const variant = {
+        id: `${p.productId}-dynamic-${vi + 1}`,
+        type: /g/i.test(value) ? 'weight' : /ml/i.test(value) ? 'volume' : 'size',
+        value,
+        size: value,
+        weight: /g/i.test(value) ? value : undefined,
+        flavor: (p.flavors || []).filter(x => x !== 'N/A')[vi % Math.max(1, (p.flavors || []).filter(x => x !== 'N/A').length)] || '',
+        strength: (p.nics || []).filter(x => x !== 'N/A')[vi % Math.max(1, (p.nics || []).filter(x => x !== 'N/A').length)] || '',
+        color: ['Black', 'Purple', 'Lime', 'Blue'][vi % 4],
+        packSize: value,
+        sku: `${p.sku}-SZ${String(vi + 1).padStart(2, '0')}`,
+        upc: `0999${String(index + 1).padStart(7, '0')}${String(vi + 1).padStart(2, '0')}`,
+        price: Number(variantPrice.toFixed(2)),
+        salePrice: Number(variantPrice.toFixed(2)),
+        inventory,
+        reserved: 0,
+        available: inventory,
+        image: realPhotoFor(p.subcategory || p.category || 'Vape Kits', index + 1, vi),
+        status: inventory > 0 ? 'Active' : 'Out of Stock'
+      };
+      return variant;
+    });
+    p.variantIndex = Object.fromEntries(p.variants.map(v => [v.id, v]));
+    p.price = p.variants[0].price;
+    p.salePrice = p.variants[0].salePrice;
+    p.retailPrice = p.price;
+  });
+
+  try {
+    frontendProducts.forEach(p => {
+      const saved = Number(localStorage.getItem(`casper_inventory_${p.productId}`));
+      if (Number.isFinite(saved) && saved > 0) p.inventory = saved;
+      else if (!Number.isFinite(saved) || saved <= 0) { p.inventory = Math.max(12, Number(p.inventory || 12)); localStorage.setItem(`casper_inventory_${p.productId}`, String(p.inventory)); }
+    });
+  } catch (_) {}
+  window.casperImageFallback = imageFallback;
+  window.casperRealFallback = (title) => { const pool = imagePoolForSubcategory(title || 'Vape Kits'); return pool[Math.floor(Math.random() * pool.length)]; };
+
+  // DEMO CATALOG COMPLIANCE NORMALIZATION
+  // Every demo product/variant carries independent catalog fields so the
+  // frontend can exercise the checklist without relying on product-name rules.
+  const demoManufacturers = ['Casper Labs', 'CloudPeak Manufacturing', 'Northstar Goods', 'Summit Supply Co.'];
+  const demoBrands = ['Casper', 'CloudRush', 'VaporEdge', 'NovaPod', 'Heritage Leaf'];
+  const demoStatuses = ['Active'];
+  frontendProducts.forEach((p, index) => {
+    const base = Number(p.salePrice ?? p.price ?? 0);
+    p.manufacturer = p.manufacturer && p.manufacturer !== 'Catalog Manufacturer' ? p.manufacturer : demoManufacturers[index % demoManufacturers.length];
+    p.brand = p.brand && p.brand !== 'Casper Collection' ? p.brand : demoBrands[index % demoBrands.length];
+    p.status = 'Active';
+    p.published = p.published !== false;
+    p.featured = !!p.featured || index < 4;
+    p.productType = isNaN(index) ? 'General' : (p.category || 'General');
+    p.shortDescription = p.shortDescription || p.desc || 'Demo catalog product with complete frontend compliance fields.';
+    p.fullDescription = p.fullDescription || `${p.shortDescription} This is demonstration catalog data for frontend QA and UI testing.`;
+    p.tags = Array.from(new Set([...(p.tags || []), p.brand, p.manufacturer, p.subcategory, p.status].filter(Boolean)));
+    p.seo = { title: p.title, description: p.shortDescription };
+    p.gallery = [p.image, ...(p.images || [])].filter(Boolean).slice(0, 4);
+    p.thumbnail = p.gallery[0] || imageFallback(p.title);
+    p.minAge = isProductAgeRestricted(p) ? 21 : 0;
+    p.ageRule = isProductAgeRestricted(p) ? { restricted: true, minimumAge: 21 } : { restricted: false, minimumAge: 0 };
+    p.demoRestrictedStates = index === 0 ? ['CA'] : [];
+    p.allowedDestinations = p.allowedStates && p.allowedStates.length ? [...p.allowedStates] : [];
+    p.inventoryOnHand = Number(p.inventory || 0) + Number(p.reserved || 0);
+    p.inventoryReserved = Number(p.reserved || 0);
+    p.inventoryAvailable = availableInventory(p);
+    p.lowStock = p.inventoryAvailable > 0 && p.inventoryAvailable <= FRONTEND_COMPLIANCE_CONFIG.lowStockThreshold;
+    p.stockPolicy = { backorderAllowed: false, oversellAllowed: false };
+    p.priceHistory = [{ date: '2026-10-01', price: base }];
+    p.pricing = {
+      cost: Number(p.cost || (base * 0.55).toFixed(2)),
+      retail: Number(p.retailPrice ?? base),
+      sale: Number(p.salePrice ?? base),
+      compareAt: Number(p.compareAt ?? base),
+      recommended: Number(p.recommendedPrice ?? base),
+      margin: Number(p.margin ?? (base * 0.45).toFixed(2)),
+      marginPct: Number(p.marginPct ?? 45)
+    };
+    p.variants = (p.variants || []).map((v, vi) => {
+      const variantValue = String(v.value || `Option ${vi + 1}`);
+      const variantSku = v.sku || `${p.sku}-V${String(vi + 1).padStart(2, '0')}`;
+      const variantUpc = v.upc || `099900${String(index + 1).padStart(3, '0')}${String(vi + 1).padStart(2, '2')}`;
+      const variantInventory = Math.max(8, Number(v.inventory ?? (Number(p.inventory || 12) - vi * 2)));
+      return {
+        id: `${p.productId}-variant-${vi + 1}`,
+        type: v.type || 'option', value: variantValue,
+        size: v.size || (p.category === 'Cigars' ? 'Single' : undefined),
+        flavor: v.type === 'flavor' ? variantValue : undefined,
+        strength: v.type === 'strength' ? variantValue : undefined,
+        color: v.type === 'color' ? variantValue : undefined,
+        packSize: v.packSize || '1 pack',
+        sku: variantSku, upc: variantUpc,
+        price: Number(v.price ?? base), salePrice: Number(v.salePrice ?? v.price ?? base),
+        inventory: variantInventory, reserved: Number(v.reserved || 0),
+        available: Math.max(0, variantInventory - Number(v.reserved || 0)),
+        image: v.image || realPhotoFor(p.subcategory || p.category || 'Vape Kits', index + 1, vi) || p.gallery[vi % Math.max(1, p.gallery.length)] || imageFallback(p.title),
+        status: variantInventory > 0 ? 'Active' : 'Out of Stock'
+      };
+    });
+    if (!p.variants.length) {
+      p.variants = [{
+        id: `${p.productId}-variant-01`, type: 'default', value: 'Standard', size: 'Standard', flavor: '', strength: '', color: '', packSize: '1 pack',
+        sku: `${p.sku}-V01`, upc: `099900${String(index + 1).padStart(6, '0')}`, price: base, salePrice: base,
+        inventory: Number(p.inventory || 0), reserved: Number(p.reserved || 0), available: availableInventory(p),
+        image: p.thumbnail, status: availableInventory(p) > 0 ? 'Active' : 'Out of Stock'
+      }];
+    }
+    p.variantIndex = Object.fromEntries(p.variants.map(v => [v.id, v]));
+  });
+
+  function validateCatalogRecords(records = frontendProducts) {
+    const errors = [];
+    const seen = { productId: new Set(), sku: new Set(), upc: new Set(), slug: new Set(), variantSku: new Set(), variantUpc: new Set() };
+    records.forEach((p, row) => {
+      ['productId','sku','upc','manufacturer','brand','title','shortDescription','fullDescription','category','subcategory','slug','status'].forEach(field => {
+        if (p[field] === undefined || p[field] === null || String(p[field]).trim() === '') errors.push(`Row ${row + 1} — Missing ${field}`);
+      });
+      ['productId','sku','upc','slug'].forEach(field => { if (seen[field].has(String(p[field]))) errors.push(`Row ${row + 1} — Duplicate ${field}`); seen[field].add(String(p[field])); });
+      if (!['Draft','Active','Out of Stock','Discontinued'].includes(p.status)) errors.push(`Row ${row + 1} — Invalid status`);
+      if (!(Number(p.retailPrice) >= 0) || !(Number(p.salePrice) >= 0)) errors.push(`Row ${row + 1} — Invalid price`);
+      if (Number(p.cost) < 0) errors.push(`Row ${row + 1} — Negative cost`);
+      if (Number(p.inventory) < 0 || Number(p.reserved) < 0) errors.push(`Row ${row + 1} — Negative inventory`);
+      (p.variants || []).forEach((v, vi) => {
+        ['sku','upc','price','inventory','image'].forEach(field => { if (v[field] === undefined || v[field] === null || String(v[field]).trim() === '') errors.push(`Row ${row + 1}, Variant ${vi + 1} — Missing ${field}`); });
+        ['variantSku','variantUpc'].forEach(field => { const val = field === 'variantSku' ? v.sku : v.upc; if (seen[field].has(String(val))) errors.push(`Row ${row + 1}, Variant ${vi + 1} — Duplicate ${field}`); seen[field].add(String(val)); });
+        if (Number(v.price) < 0 || Number(v.inventory) < 0) errors.push(`Row ${row + 1}, Variant ${vi + 1} — Negative price/inventory`);
+      });
+    });
+    return { valid: errors.length === 0, errors };
+  }
+  window.CasperCatalogDemo = { records: frontendProducts, validate: () => validateCatalogRecords(), policy: FRONTEND_COMPLIANCE_CONFIG };
+
+  const productIndex = new Map(frontendProducts.map(p => [p.productId, p]));
+  function getFrontendProduct(id) { return productIndex.get(String(id)); }
+  function availableInventory(p) { return Math.max(0, Number(p?.inventory || 0) - Number(p?.reserved || 0)); }
+  function isProductAgeRestricted(p) { return !!p?.ageRestricted || Number(p?.minAge || 0) >= FRONTEND_COMPLIANCE_CONFIG.minimumAge; }
+  function validateQuantity(p, quantity) {
+    const q = Number(quantity);
+    if (!Number.isInteger(q) || q < 1) return { ok: false, message: 'Quantity must be a positive whole number.' };
+    const available = availableInventory(p);
+    if (q > available && !p.backorderAllowed) return { ok: false, message: `Only ${available} unit${available === 1 ? '' : 's'} available.` };
+    return { ok: true };
+  }
+  function getVariantForCartItem(item, product) {
+    return (product?.variants || []).find(v => String(v.id) === String(item?.variantId)) || null;
+  }
+  function validateCartItemQuantity(item, nextQuantity) {
+    const p = getFrontendProduct(item.productId) || item;
+    const variant = getVariantForCartItem(item, p);
+    const available = variant ? Number(variant.available ?? variant.inventory ?? 0) : availableInventory(p);
+    const q = Number(nextQuantity);
+    if (!Number.isInteger(q) || q < 1) return { ok: false, message: 'Quantity must be a positive whole number.' };
+    if (q > available && !(variant?.backorderAllowed || p.backorderAllowed)) return { ok: false, message: `Only ${available} unit${available === 1 ? '' : 's'} available for this variant.` };
+    return { ok: true };
+  }
+  function canShipToState(p, state) {
+    const s = String(state || '').trim().toUpperCase();
+    if (!/^[A-Z]{2}$/.test(s)) return { ok: false, message: 'Enter a valid 2-letter state code.' };
+    if (FRONTEND_COMPLIANCE_CONFIG.restrictedStates.includes(s)) return { ok: false, message: 'This destination is not eligible for this store shipping policy.' };
+    if (Array.isArray(p?.demoRestrictedStates) && p.demoRestrictedStates.includes(s)) return { ok: false, message: 'Demo policy: this product is restricted for the selected destination.' };
+    if (Array.isArray(p?.allowedStates) && p.allowedStates.length && !p.allowedStates.includes(s)) return { ok: false, message: 'This product cannot be shipped to the selected destination.' };
+    return { ok: true };
+  }
+  function validateAddress(form) {
+    const zip = String(form.zip || '').trim();
+    const email = String(form.email || '').trim();
+    if (!/^[A-Za-z0-9 .,'#/-]{5,120}$/.test(form.address || '')) return 'Enter a valid street address.';
+    if (!/^[A-Za-z .'-]{2,60}$/.test(form.city || '')) return 'Enter a valid city.';
+    if (!/^\d{5}(?:-\d{4})?$/.test(zip)) return 'Enter a valid ZIP code.';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return 'Enter a valid email address.';
+    return '';
+  }
+  function calculateShipping(cartItems, state) {
+    const subtotal = cartItems.reduce((s, i) => s + Number(i.price || 0) * Number(i.quantity || 0), 0);
+    const weight = cartItems.reduce((s, i) => s + Number(i.weightOz || 8) * Number(i.quantity || 0), 0);
+    const base = String(state || '').toUpperCase() === 'WY' ? FRONTEND_COMPLIANCE_CONFIG.defaultShipping : FRONTEND_COMPLIANCE_CONFIG.outOfStateShipping;
+    const weightSurcharge = weight > 64 ? Math.ceil((weight - 64) / 32) * 4.99 : 0;
+    const free = String(state || '').toUpperCase() === 'WY' && subtotal >= FRONTEND_COMPLIANCE_CONFIG.freeShippingThreshold;
+    return { fee: free ? 0 : base + weightSurcharge, weightOz: weight, free };
+  }
+  function escapeHtml(value) {
+    return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+  function normalizeSearch(s) { return String(s || '').toLowerCase().trim().replace(/\s+/g, ' '); }
+
+
 
   // ==========================================
   // 2. MODAL CONTROLLER FRAMEWORK
@@ -496,98 +990,115 @@ document.addEventListener('DOMContentLoaded', function () {
   window.closeCasperModal = closeModal;
 
   // ==========================================
-  // 3. AGE GATE OVERLAY (21+)
+  // 3. AGE GATE OVERLAY (21+) - FRONTEND COMPLIANCE GUARD
   // ==========================================
   (function initAgeGate() {
     const ageGate = document.getElementById('casper-age-gate');
     const yesBtn = document.getElementById('casper-age-yes');
     const noBtn = document.getElementById('casper-age-no');
-    const verifyBtn = document.getElementById('casper-age-verify');
-    const backBtn = document.getElementById('casper-age-back');
-    const dobInput = document.getElementById('casper-dob');
-    const dobError = document.getElementById('casper-dob-error');
     const stepOne = document.getElementById('casper-age-step-one');
     const stepTwo = document.getElementById('casper-age-step-two');
+    const dobInput = document.getElementById('casper-dob');
+    const verifyBtn = document.getElementById('casper-age-verify');
+    const backBtn = document.getElementById('casper-age-back');
+    const error = document.getElementById('casper-dob-error');
+
+    function sessionVerified() {
+      try { return sessionStorage.getItem('casper_age_verified') === '1'; }
+      catch (_) { return false; }
+    }
+
+    function validDob(value) {
+      const raw = String(value || '').trim();
+      if (!/^\d{2}\/\d{2}\/\d{4}$/.test(raw)) return { ok: false, reason: 'Please enter your date of birth in MM/DD/YYYY format.' };
+      const [m, d, y] = raw.split('/').map(Number);
+      if (y < 1900) return { ok: false, reason: 'Please enter a valid year.' };
+      const dob = new Date(y, m - 1, d);
+      if (dob.getFullYear() !== y || dob.getMonth() !== m - 1 || dob.getDate() !== d) return { ok: false, reason: 'That date is not a valid calendar date.' };
+      if (dob > new Date()) return { ok: false, reason: 'Future dates of birth are not allowed.' };
+      const today = new Date();
+      let age = today.getFullYear() - y;
+      if (today.getMonth() + 1 < m || (today.getMonth() + 1 === m && today.getDate() < d)) age--;
+      if (age < 21) return { ok: false, reason: 'You must be at least 21 years old to enter.' };
+      return { ok: true, age };
+    }
+
+    function showGate() {
+      if (!ageGate) return;
+      ageGate.style.display = 'flex';
+      ageGate.style.opacity = '1';
+      document.body.style.overflow = 'hidden';
+      if (stepOne) stepOne.style.display = '';
+      if (stepTwo) stepTwo.style.display = 'none';
+      if (error) { error.textContent = ''; error.style.display = 'none'; }
+    }
 
     function hideGate() {
       if (!ageGate) return;
       ageGate.style.opacity = '0';
-      ageGate.style.transition = 'opacity 0.3s ease';
+      ageGate.style.transition = 'opacity .2s ease';
       setTimeout(() => {
         ageGate.style.display = 'none';
         document.body.style.overflow = '';
-      }, 300);
-    }
-    function showGate() {
-      if (!ageGate) return;
-      ageGate.classList.add('cg-wired');
-      ageGate.style.display = 'flex';
-      ageGate.style.opacity = '1';
-      document.body.style.overflow = 'hidden';
-      if (stepOne) stepOne.style.display = 'block';
-      if (stepTwo) stepTwo.style.display = 'none';
-    }
-    function parseDOB(value) {
-      const m = String(value || '').trim().match(/^(0[1-9]|1[0-2])\/(0[1-9]|[12]\d|3[01])\/(\d{4})$/);
-      if (!m) return null;
-      const month = Number(m[1]), day = Number(m[2]), year = Number(m[3]);
-      const d = new Date(year, month - 1, day);
-      if (d.getFullYear() !== year || d.getMonth() !== month - 1 || d.getDate() !== day) return null;
-      return d;
-    }
-    function is21OrOlder(dob) {
-      const now = new Date();
-      const cutoff = new Date(now.getFullYear() - 21, now.getMonth(), now.getDate());
-      return dob <= cutoff;
-    }
-    function formatDOBInput() {
-      if (!dobInput) return;
-      let digits = dobInput.value.replace(/\D/g, '').slice(0, 8);
-      if (digits.length > 4) digits = digits.slice(0,2) + '/' + digits.slice(2,4) + '/' + digits.slice(4);
-      else if (digits.length > 2) digits = digits.slice(0,2) + '/' + digits.slice(2);
-      dobInput.value = digits;
-      if (dobError) dobError.style.display = 'none';
+      }, 200);
     }
 
-    // Keep age verification for this browser tab only. After a successful
-    // verification, moving between sections/pages in the same tab will not reopen it.
-    // A fresh tab/window gets its own sessionStorage and will ask again.
-    try {
-      if (sessionStorage.getItem('casper_age_verified') === '1') hideGate();
-      else showGate();
-    } catch (e) {
+    function requireVerification(message) {
+      if (sessionVerified()) return true;
       showGate();
+      if (message && typeof window.showToast === 'function') window.showToast(message, 'info');
+      return false;
     }
 
-    if (yesBtn) yesBtn.addEventListener('click', function () {
+    window.casperAgeVerified = sessionVerified;
+    window.requireCasperAgeVerification = requireVerification;
+    window.getCasperDobValidation = validDob;
+
+    if (sessionVerified()) hideGate();
+    else showGate();
+
+    yesBtn?.addEventListener('click', () => {
       if (stepOne) stepOne.style.display = 'none';
       if (stepTwo) stepTwo.style.display = 'block';
-      setTimeout(() => dobInput && dobInput.focus(), 50);
+      setTimeout(() => dobInput?.focus(), 0);
     });
-    if (backBtn) backBtn.addEventListener('click', function () {
+
+    backBtn?.addEventListener('click', () => {
       if (stepTwo) stepTwo.style.display = 'none';
-      if (stepOne) stepOne.style.display = 'block';
+      if (stepOne) stepOne.style.display = '';
+      if (error) { error.textContent = ''; error.style.display = 'none'; }
     });
-    if (dobInput) {
-      dobInput.addEventListener('input', formatDOBInput);
-      dobInput.addEventListener('keydown', e => { if (e.key === 'Enter' && verifyBtn) verifyBtn.click(); });
-    }
-    if (verifyBtn) verifyBtn.addEventListener('click', function () {
-      const dob = parseDOB(dobInput ? dobInput.value : '');
-      if (!dob) {
-        if (dobError) { dobError.textContent = 'Please enter a valid date in MM/DD/YYYY format.'; dobError.style.display = 'block'; }
-        return;
-      }
-      if (!is21OrOlder(dob)) {
-        if (dobError) { dobError.textContent = 'You must be 21 or older to enter Casper Smoke Shop.'; dobError.style.display = 'block'; }
+
+    dobInput?.addEventListener('input', () => {
+      let v = dobInput.value.replace(/\D/g, '').slice(0, 8);
+      if (v.length > 4) v = `${v.slice(0,2)}/${v.slice(2,4)}/${v.slice(4)}`;
+      else if (v.length > 2) v = `${v.slice(0,2)}/${v.slice(2)}`;
+      dobInput.value = v;
+      if (error) { error.textContent = ''; error.style.display = 'none'; }
+    });
+
+    verifyBtn?.addEventListener('click', () => {
+      const result = validDob(dobInput?.value);
+      if (!result.ok) {
+        if (error) { error.textContent = result.reason; error.style.display = 'block'; }
+        dobInput?.focus();
         return;
       }
       sessionStorage.setItem('casper_age_verified', '1');
+      sessionStorage.setItem('casper_age_verified_at', new Date().toISOString());
       hideGate();
-      showToast('Age verified! Welcome to Casper Smoke Shop.', 'success');
+      window.dispatchEvent(new CustomEvent('casper:age-verified', { detail: { age: result.age } }));
+      window.showToast?.('Age verified. Welcome to Casper Smoke Shop.', 'success');
     });
-    if (noBtn) noBtn.addEventListener('click', function () {
-      window.location.href = 'https://www.google.com';
+
+    noBtn?.addEventListener('click', () => {
+      if (!ageGate) return;
+      ageGate.innerHTML = `<div style="max-width:460px;width:100%;text-align:center;background:var(--cag-card);border:1px solid var(--cag-purple-line);border-radius:14px;padding:44px 32px;color:var(--cag-ink);font-family:Inter,system-ui,sans-serif">
+        <h2 style="margin:0 0 12px;font-family:Anton,Arial,sans-serif;text-transform:uppercase">Access restricted</h2>
+        <p style="margin:0 0 20px;color:var(--cag-ink-soft);line-height:1.6">You must be 21 or older to access age-restricted products.</p>
+        <button type="button" id="casper-age-leave" style="padding:12px 22px;border:0;border-radius:6px;cursor:pointer;background:var(--cag-green);color:var(--cag-ink-on-green);font-weight:700">LEAVE SITE</button>
+      </div>`;
+      document.getElementById('casper-age-leave')?.addEventListener('click', () => window.location.replace('about:blank'));
     });
 
     window.showCasperAgeGate = showGate;
@@ -702,7 +1213,8 @@ document.addEventListener('DOMContentLoaded', function () {
   // 6. CART ENGINE & UI RENDERER
   // ==========================================
   let cart = [];
-  let appliedDiscount = 0; // percentage e.g. 0.20 for CASPER20
+  let appliedDiscount = 0; // percentage for percentage coupons
+  let appliedDiscountAmount = 0; // exact fixed/percentage discount for the current checkout
 
   function loadCart() {
     try {
@@ -724,7 +1236,25 @@ document.addEventListener('DOMContentLoaded', function () {
     return cart.reduce((total, item) => total + (item.price * item.quantity), 0);
   }
 
+  function syncCartAgainstCatalog() {
+    cart = cart.filter(item => {
+      const p = getFrontendProduct(item.productId);
+      if (!p) return false;
+      const variant = getVariantForCartItem(item, p);
+      if (variant) {
+        item.price = Number(variant.salePrice ?? variant.price ?? item.price);
+        item.image = variant.image || item.image || p.image;
+        item.sku = variant.sku || item.sku;
+        item.upc = variant.upc || item.upc;
+      } else {
+        item.price = Number(p.salePrice ?? p.price ?? item.price);
+      }
+      return true;
+    });
+  }
+
   function renderCartUI() {
+    syncCartAgainstCatalog();
     const badges = document.querySelectorAll('.cc-cart__badge');
     const totalCount = getCartItemCount();
     badges.forEach(badge => { badge.textContent = totalCount; });
@@ -813,10 +1343,16 @@ document.addEventListener('DOMContentLoaded', function () {
           const action = this.getAttribute('data-action');
           if (isNaN(idx) || !cart[idx]) return;
 
-          if (action === 'plus') cart[idx].quantity += 1;
-          else if (action === 'minus') {
-            cart[idx].quantity -= 1;
-            if (cart[idx].quantity <= 0) cart.splice(idx, 1);
+          const item = cart[idx];
+          const cp = getFrontendProduct(item.productId) || item;
+          if (action === 'plus') {
+            const next = Number(item.quantity || 0) + 1;
+            const check = validateCartItemQuantity(item, next);
+            if (!check.ok) { showToast(check.message, 'info'); return; }
+            item.quantity = next;
+          } else if (action === 'minus') {
+            item.quantity = Math.max(0, Number(item.quantity || 0) - 1);
+            if (item.quantity === 0) cart.splice(idx, 1);
           } else if (action === 'remove') cart.splice(idx, 1);
           saveCart();
         });
@@ -837,35 +1373,43 @@ document.addEventListener('DOMContentLoaded', function () {
   renderCartUI();
 
   // ==========================================
-  // 7. USER ACCOUNT SYSTEM & MODAL
+  // 7. USER ACCOUNT SYSTEM & DASHBOARD
   // ==========================================
+  // Frontend demo account storage. Production authentication must be server-side.
+  const ACCOUNT_STORE_KEY = 'casper_customer_accounts';
+
+  function getStoredAccounts() {
+    try { return JSON.parse(localStorage.getItem(ACCOUNT_STORE_KEY) || '{}'); }
+    catch (_) { return {}; }
+  }
+  function saveStoredAccount(account) {
+    const accounts = getStoredAccounts();
+    accounts[String(account.email || '').toLowerCase()] = account;
+    localStorage.setItem(ACCOUNT_STORE_KEY, JSON.stringify(accounts));
+    return account;
+  }
+  function getStoredAccount(email) {
+    const accounts = getStoredAccounts();
+    return accounts[String(email || '').trim().toLowerCase()] || null;
+  }
   function getUserSession() {
     try {
       const u = localStorage.getItem('casper_logged_user');
       return u ? JSON.parse(u) : null;
     } catch (e) { return null; }
   }
-  function getStoredAccount(email) {
-    try {
-      const accounts = JSON.parse(localStorage.getItem('casper_accounts') || '{}');
-      return accounts[String(email || '').toLowerCase()] || null;
-    } catch (e) { return null; }
+  function getCustomerOrders(email) {
+    const orders = window.casperFrontendOrderState?.get?.() || {};
+    const normalized = String(email || '').trim().toLowerCase();
+    return Object.values(orders)
+      .filter(o => String(o?.customer?.email || o?.ownerEmail || '').toLowerCase() === normalized)
+      .sort((a,b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
   }
-  function saveStoredAccount(account) {
-    const accounts = JSON.parse(localStorage.getItem('casper_accounts') || '{}');
-    accounts[account.email.toLowerCase()] = account;
-    localStorage.setItem('casper_accounts', JSON.stringify(accounts));
+  function money(v) { return `$${Number(v || 0).toFixed(2)}`; }
+  function orderStatusClass(status) {
+    return String(status || 'Processing').toLowerCase().replace(/[^a-z0-9]+/g,'-');
   }
-  function getAccountOrders(email) {
-    try {
-      const all = JSON.parse(localStorage.getItem('casper_orders') || '{}');
-      return all[String(email || '').toLowerCase()] || [];
-    } catch (e) { return []; }
-  }
-  function getAccountRewards(email) {
-    const account = getStoredAccount(email);
-    return account ? Number(account.tokens || 0) : 0;
-  }
+
   function updateUserAccountUI() {
     const user = getUserSession();
     const acctBtns = document.querySelectorAll('.cc-acct, a[href*="account"]');
@@ -873,7 +1417,7 @@ document.addEventListener('DOMContentLoaded', function () {
       const txtStrong = btn.querySelector('strong');
       const txtSpan = btn.querySelector('span:not(.cc-acct__ic)');
       if (user) {
-        if (txtStrong) txtStrong.textContent = 'Hi, ' + user.name.split(' ')[0];
+        if (txtStrong) txtStrong.textContent = 'Hi, ' + String(user.name || 'Customer').split(' ')[0];
         if (txtSpan) txtSpan.textContent = 'Dashboard';
       } else {
         if (txtStrong) txtStrong.textContent = 'Account';
@@ -881,181 +1425,222 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     });
   }
+
   function renderAccountDashboard(user) {
-    const account = getStoredAccount(user.email) || { name:user.name, email:user.email, tokens:0, membership:'Casper Rewards', joinedAt:new Date().toISOString() };
-    const orders = getAccountOrders(user.email);
-    const tokens = Number(account.tokens || 0);
-    const redeemable = tokens >= 200;
+    const account = getStoredAccount(user.email) || {
+      name:user.name, email:user.email, membership:'Casper Rewards', membershipStatus:'Active', tokens:0
+    };
+    const orders = getCustomerOrders(user.email);
+    const totalSpent = orders.reduce((sum,o)=>sum + Number(o.total || 0),0);
+    const transactions = orders.flatMap(o => {
+      const rows=[{
+        date:o.createdAt, type:'Payment', reference:o.paymentReference || o.number,
+        amount:Number(o.total || 0), status:o.paymentStatus || 'Authorized', order:o.number
+      }];
+      if (Number(o.refundAmount || 0) > 0) rows.push({
+        date:o.updatedAt || o.createdAt, type:'Refund', reference:`REF-${o.number}`,
+        amount:-Number(o.refundAmount || 0), status:o.refundStatus || 'Refunded', order:o.number
+      });
+      return rows;
+    }).sort((a,b)=>new Date(b.date||0)-new Date(a.date||0));
+    const addresses = Array.isArray(account.addresses) ? account.addresses : [];
+    const safeName=escapeHtml(account.name || user.name || 'Customer');
+    const safeEmail=escapeHtml(account.email || user.email || '');
+
     openModal(`
       <div class="casper-account-dashboard">
         <div class="casper-account-hero">
-          <div><div class="casper-account-kicker">Casper Account</div><h2>Welcome, ${account.name}!</h2><div class="casper-account-email">${account.email}</div></div>
-          <div class="casper-token-badge"><strong>${tokens}</strong><span>Casper Tokens</span></div>
+          <div>
+            <div class="casper-account-kicker">My Account</div>
+            <h2>Welcome, ${safeName}</h2>
+            <div class="casper-account-email">${safeEmail}</div>
+          </div>
+          <div class="casper-token-badge"><strong>${Number(account.tokens || 0)}</strong><span>Casper Tokens</span></div>
         </div>
+
         <div class="casper-reward-grid">
-          <div class="casper-reward-card"><small>Rewards rate</small><strong>1 Token / $1</strong></div>
-          <div class="casper-reward-card"><small>Reward</small><strong>$15 OFF</strong></div>
-          <div class="casper-reward-card"><small>Redeem at</small><strong>200 Tokens</strong></div>
+          <div class="casper-reward-card"><small>Total Orders</small><strong>${orders.length}</strong></div>
+          <div class="casper-reward-card"><small>Total Spent</small><strong>${money(totalSpent)}</strong></div>
+          <div class="casper-reward-card"><small>Membership</small><strong>${escapeHtml(account.membershipStatus || 'Active')}</strong></div>
         </div>
-        <p class="casper-reward-note">Every eligible dollar you spend earns 1 Casper Token. Redeem 200 Tokens for $15 OFF your next qualifying order.</p>
+
         <div class="casper-dashboard-actions">
-          <button type="button" class="casper-btn-primary" id="casper-redeem-btn" ${redeemable ? '' : 'disabled'}>${redeemable ? 'REDEEM 200 TOKENS — $15 OFF' : 'EARN ' + (200 - tokens) + ' MORE TOKENS'}</button>
-          <button type="button" class="casper-btn-primary" id="casper-logout-btn" style="background:#ff4d4d;color:#fff">SIGN OUT</button>
+          <button type="button" class="casper-btn-primary" data-account-tab="orders">ORDERS</button>
+          <button type="button" class="casper-btn-primary" data-account-tab="transactions">TRANSACTIONS</button>
+          <button type="button" class="casper-btn-primary" data-account-tab="profile">ACCOUNT DETAILS</button>
+          <button type="button" class="casper-btn-primary casper-account-logout" style="background:#ff4d4d;color:#fff">LOG OUT</button>
         </div>
-        <div class="casper-dashboard-section">
-          <h3>Membership</h3>
-          <div class="casper-order-empty"><strong>${account.membership || 'Casper Rewards'}</strong> · ${account.membershipStatus || 'Active'}<br>Earn Tokens on every eligible purchase.</div>
-        </div>
-        <div class="casper-dashboard-section">
+
+        <div class="casper-dashboard-section" data-account-panel="orders">
           <h3>Order History</h3>
-          ${orders.length ? orders.slice().reverse().map(o => `<div class="casper-order-row"><span><strong>#${o.number}</strong></span><span>${o.date}</span><span>${o.items} item${o.items === 1 ? '' : 's'}</span><span>$${Number(o.total).toFixed(2)}</span></div>`).join('') : '<div class="casper-order-empty">No orders yet. Your completed orders will appear here.</div>'}
+          ${orders.length ? orders.map(o => `
+            <div class="casper-order-card">
+              <div class="casper-order-row">
+                <span><strong>#${escapeHtml(o.number)}</strong><small>${new Date(o.createdAt || Date.now()).toLocaleString()}</small></span>
+                <span>${Number(o.items?.length || 0)} item${Number(o.items?.length || 0)===1?'':'s'}</span>
+                <span>${money(o.total)}</span>
+                <span class="casper-order-status status-${orderStatusClass(o.status)}">${escapeHtml(o.status || 'Processing')}</span>
+              </div>
+              <div class="casper-order-items">${(o.items || []).map(i=>`${escapeHtml(i.title || 'Product')} × ${Number(i.quantity || 1)}`).join(' · ')}</div>
+              <div class="casper-order-meta">Payment: ${escapeHtml(o.paymentStatus || 'Authorized')} · Ship to: ${escapeHtml(o.shippingAddress?.city || '')}, ${escapeHtml(o.shippingAddress?.state || '')}</div>
+            </div>`).join('') : '<div class="casper-order-empty">No orders yet. Your completed orders will appear here.</div>'}
+        </div>
+
+        <div class="casper-dashboard-section" data-account-panel="transactions">
+          <h3>Transactions & Payments</h3>
+          ${transactions.length ? `<div class="casper-transaction-list">${transactions.map(t=>`
+            <div class="casper-transaction-row">
+              <div><strong>${escapeHtml(t.type)}</strong><small>${escapeHtml(t.order || '')} · ${new Date(t.date || Date.now()).toLocaleString()}</small></div>
+              <span>${money(t.amount)}</span>
+              <em>${escapeHtml(t.status)}</em>
+            </div>`).join('')}</div>` : '<div class="casper-order-empty">No transactions yet.</div>'}
+          <div class="casper-reward-note">Payment references shown here are frontend-demo records. Real payment data must come from the payment processor/backend.</div>
+        </div>
+
+        <div class="casper-dashboard-section" data-account-panel="profile">
+          <h3>Account Details</h3>
+          <div class="casper-profile-grid">
+            <div><small>Full Name</small><strong>${safeName}</strong></div>
+            <div><small>Email</small><strong>${safeEmail}</strong></div>
+            <div><small>Member Since</small><strong>${account.joinedAt ? new Date(account.joinedAt).toLocaleDateString() : 'Today'}</strong></div>
+            <div><small>Reward Balance</small><strong>${Number(account.tokens || 0)} Tokens</strong></div>
+          </div>
+          <h3 style="margin-top:18px">Saved Addresses</h3>
+          ${addresses.length ? addresses.map(a=>`<div class="casper-saved-address">${escapeHtml(a.address || '')}, ${escapeHtml(a.city || '')}, ${escapeHtml(a.state || '')} ${escapeHtml(a.zip || '')}</div>`).join('') : '<div class="casper-order-empty">No saved addresses yet. Your checkout address can be saved here in the full account system.</div>'}
         </div>
       </div>
     `);
-    const redeemBtn = document.getElementById('casper-redeem-btn');
-    if (redeemBtn && redeemable) redeemBtn.addEventListener('click', function () {
-      account.tokens = tokens - 200;
-      saveStoredAccount(account);
-      localStorage.setItem('casper_reward_discount', '15');
-      showToast('$15 reward activated! It will apply at checkout.', 'success');
-      renderAccountDashboard(user);
-    });
-    const logout = document.getElementById('casper-logout-btn');
-    if (logout) logout.addEventListener('click', function () {
+
+    const panels=[...document.querySelectorAll('[data-account-panel]')];
+    function showPanel(name){ panels.forEach(p=>p.style.display=p.dataset.accountPanel===name?'block':'none'); }
+    showPanel('orders');
+    document.querySelectorAll('[data-account-tab]').forEach(btn=>btn.addEventListener('click',()=>showPanel(btn.dataset.accountTab)));
+    const logout=document.querySelector('.casper-account-logout');
+    if(logout) logout.addEventListener('click',()=>{
       localStorage.removeItem('casper_logged_user');
-      updateUserAccountUI(); closeModal();
-      if (window.showCasperAgeGate) window.showCasperAgeGate();
-      showToast('Signed out successfully.', 'info');
+      updateUserAccountUI();
+      closeModal();
+      showToast('Logged out successfully.', 'info');
     });
   }
+
   function openAccountModal() {
     const user = getUserSession();
     if (user) { renderAccountDashboard(user); return; }
     openModal(`
       <h2 class="casper-modal__title">🔐 Casper Account</h2>
-      <p class="casper-modal__sub">Sign in or create your account to track orders, membership and Casper Tokens.</p>
-      <div class="casper-modal-tabs"><button class="casper-modal-tab is-active" id="tab-login">Sign In</button><button class="casper-modal-tab" id="tab-register">Create Account</button></div>
+      <p class="casper-modal__sub">Sign in to your account or create a new account to track orders, transactions, rewards and saved details.</p>
+      <div class="casper-modal-tabs">
+        <button class="casper-modal-tab is-active" id="tab-login">Sign In</button>
+        <button class="casper-modal-tab" id="tab-register">Create Account</button>
+      </div>
       <form id="casper-account-form">
-        <div class="casper-form-group" id="group-name" style="display:none"><label>Full Name</label><input type="text" class="casper-form-input" id="acct-name" placeholder="John Doe"></div>
+        <div class="casper-form-group" id="group-name" style="display:none;"><label>Full Name</label><input type="text" class="casper-form-input" id="acct-name" placeholder="John Doe"></div>
         <div class="casper-form-group"><label>Email Address</label><input type="email" class="casper-form-input" id="acct-email" placeholder="you@example.com" required></div>
-        <div class="casper-form-group"><label>Password</label><input type="password" class="casper-form-input" id="acct-password" placeholder="Create a password" minlength="6" required></div>
+        <div class="casper-form-group"><label>Password</label><input type="password" class="casper-form-input" id="acct-password" placeholder="Password" minlength="6" required></div>
         <button type="submit" class="casper-btn-primary" id="acct-submit-btn">SIGN IN</button>
       </form>
+      <p class="casper-reward-note">Demo storefront: authentication is browser-only. Production passwords must never be stored in localStorage.</p>
     `);
-    let mode = 'login';
-    const tabLogin = document.getElementById('tab-login'), tabReg = document.getElementById('tab-register'), groupName = document.getElementById('group-name'), submitBtn = document.getElementById('acct-submit-btn');
-    tabLogin.addEventListener('click', () => { mode='login'; tabLogin.classList.add('is-active'); tabReg.classList.remove('is-active'); groupName.style.display='none'; submitBtn.textContent='SIGN IN'; });
-    tabReg.addEventListener('click', () => { mode='register'; tabReg.classList.add('is-active'); tabLogin.classList.remove('is-active'); groupName.style.display='block'; submitBtn.textContent='CREATE ACCOUNT'; });
-    document.getElementById('casper-account-form').addEventListener('submit', function(e) {
+    let mode='login';
+    const tabLogin=document.getElementById('tab-login'), tabReg=document.getElementById('tab-register');
+    const groupName=document.getElementById('group-name'), submitBtn=document.getElementById('acct-submit-btn');
+    tabLogin.addEventListener('click',()=>{mode='login';tabLogin.classList.add('is-active');tabReg.classList.remove('is-active');groupName.style.display='none';submitBtn.textContent='SIGN IN';});
+    tabReg.addEventListener('click',()=>{mode='register';tabReg.classList.add('is-active');tabLogin.classList.remove('is-active');groupName.style.display='block';submitBtn.textContent='CREATE ACCOUNT';});
+    document.getElementById('casper-account-form').addEventListener('submit',function(e){
       e.preventDefault();
-      const email = document.getElementById('acct-email').value.trim().toLowerCase();
-      const password = document.getElementById('acct-password').value;
-      if (mode === 'register') {
-        const existing = getStoredAccount(email);
-        if (existing) { showToast('An account with this email already exists. Sign in instead.', 'info'); return; }
-        const name = document.getElementById('acct-name').value.trim() || email.split('@')[0];
-        saveStoredAccount({name,email,password,tokens:0,membership:'Casper Rewards',membershipStatus:'Active',joinedAt:new Date().toISOString()});
-        localStorage.setItem('casper_logged_user', JSON.stringify({name,email}));
-        updateUserAccountUI(); renderAccountDashboard({name,email});
-        showToast(`Welcome ${name}! Your Casper account is ready.`, 'success');
+      const email=document.getElementById('acct-email').value.trim().toLowerCase();
+      const password=document.getElementById('acct-password').value;
+      const existing=getStoredAccount(email);
+      if(mode==='register'){
+        if(existing){showToast('An account with this email already exists. Sign in instead.','info');return;}
+        const name=document.getElementById('acct-name').value.trim() || email.split('@')[0];
+        // Browser-only demo credential marker; never use this pattern in production.
+        saveStoredAccount({name,email,password,joinedAt:new Date().toISOString(),tokens:0,membership:'Casper Rewards',membershipStatus:'Active',addresses:[]});
+        const session={name,email,date:new Date().toISOString()};
+        localStorage.setItem('casper_logged_user',JSON.stringify(session));
+        updateUserAccountUI(); closeModal(); renderAccountDashboard(session); showToast(`Welcome ${name}! Your account is ready.`,'success');
       } else {
-        const account = getStoredAccount(email);
-        if (!account || account.password !== password) { showToast('Incorrect email or password.', 'info'); return; }
-        localStorage.setItem('casper_logged_user', JSON.stringify({name:account.name,email:account.email}));
-        updateUserAccountUI(); renderAccountDashboard(account);
-        showToast(`Welcome back, ${account.name}!`, 'success');
+        if(!existing){showToast('No account found for this email. Please create an account first.','info');return;}
+        if(existing.password && existing.password!==password){showToast('Incorrect password.','info');return;}
+        const session={name:existing.name || email.split('@')[0],email,date:new Date().toISOString()};
+        localStorage.setItem('casper_logged_user',JSON.stringify(session));
+        updateUserAccountUI(); closeModal(); renderAccountDashboard(session); showToast(`Welcome back, ${session.name}!`,'success');
       }
     });
   }
 
   updateUserAccountUI();
-
-  document.addEventListener('click', function (e) {
-    const acctTarget = e.target.closest('.cc-acct, a[href*="account"]');
-    if (acctTarget) {
-      e.preventDefault();
-      openAccountModal();
-    }
+  document.addEventListener('click', function(e) {
+    const acctTarget=e.target.closest('.cc-acct, a[href*="account"]');
+    if(acctTarget){e.preventDefault();openAccountModal();}
   });
 
   // ==========================================
   // 8. PRODUCT QUICK VIEW MODAL
   // ==========================================
   function openQuickViewModal(prod) {
-    let selectedFlavor = prod.flavors ? prod.flavors[0] : '';
-    let selectedNic = prod.nics ? prod.nics[0] : '';
+    const cp = getFrontendProduct(prod.productId || prod.id) || prod;
+    const variants = Array.isArray(cp.variants) && cp.variants.length ? cp.variants : [{
+      id: `${cp.productId}-default`, type: 'default', value: 'Standard', sku: cp.sku, upc: cp.upc,
+      price: Number(cp.salePrice ?? cp.price), salePrice: Number(cp.salePrice ?? cp.price), inventory: availableInventory(cp), available: availableInventory(cp), image: cp.image
+    }];
+    let selectedVariant = variants[0];
+    const money = v => `$${Number(v || 0).toFixed(2)}`;
+    const variantButtons = variants.map((v, i) => `<button type="button" class="casper-option-chip ${i===0?'is-selected':''}" data-variant-id="${escapeHtml(v.id)}">${escapeHtml(v.value || 'Standard')} · ${money(v.salePrice ?? v.price)}</button>`).join('');
+    const renderVariantState = () => {
+      const node = document.getElementById('qv-variant-state');
+      const btn = document.getElementById('qv-add-cart-btn');
+      if (!node || !btn) return;
+      const available = Number(selectedVariant.available ?? selectedVariant.inventory ?? 0);
+      node.innerHTML = `<div><strong>SKU:</strong> ${escapeHtml(selectedVariant.sku)} &nbsp; <strong>UPC:</strong> ${escapeHtml(selectedVariant.upc)}</div><div><strong>Price:</strong> ${money(selectedVariant.salePrice ?? selectedVariant.price)} &nbsp; <strong>Size/Weight:</strong> ${escapeHtml(selectedVariant.value || 'Standard')} &nbsp; <strong>Stock:</strong> ${available <= 0 ? 'OUT OF STOCK' : available <= FRONTEND_COMPLIANCE_CONFIG.lowStockThreshold ? `ONLY ${available} LEFT` : `${available} ITEMS IN STOCK`}</div><div><strong>Status:</strong> ${escapeHtml(selectedVariant.status || (available>0?'Active':'Out of Stock'))}</div>`;
+      btn.textContent = available > 0 ? `ADD TO CART — ${money(selectedVariant.salePrice ?? selectedVariant.price)}` : 'OUT OF STOCK';
+      btn.disabled = available <= 0;
+      const img = document.getElementById('qv-main-image'); if (img && selectedVariant.image) { img.src = selectedVariant.image; img.onerror = function(){this.onerror=null;this.src=(window.casperRealFallback ? window.casperRealFallback(this.alt) : window.casperImageFallback(this.alt));}; }
+    };
 
     openModal(`
       <div class="casper-qv-grid">
-        <img class="casper-qv-img" src="${prod.image}" alt="${prod.title}">
+        <button type="button" class="casper-qv-image-button" aria-label="Zoom product image"><img id="qv-main-image" class="casper-qv-img" src="${escapeHtml(selectedVariant.image || cp.image || imageFallback(cp.title))}" alt="${escapeHtml(cp.title)}" loading="eager" onerror="this.onerror=null;this.src=(window.casperRealFallback ? window.casperRealFallback(this.alt) : window.casperImageFallback(this.alt));"></button>
         <div style="text-align:left;">
-          <span class="casper-qv-badge">${prod.tag || prod.category}</span>
-          <h2 style="font-size:20px;font-weight:700;margin:4px 0 10px;line-height:1.3;">${prod.title}</h2>
-          <div style="font-size:13px;color:var(--casper-green-ink);font-weight:bold;margin-bottom:8px;">★ ${prod.rating || '5.0'} (120+ Adult Reviews)</div>
-          <div class="casper-qv-price">$${prod.price.toFixed(2)}</div>
-          <p style="font-size:13px;color:var(--casper-ink-soft);margin-bottom:16px;line-height:1.5;">${prod.desc}</p>
-          
-          ${prod.flavors && prod.flavors.length > 0 && prod.flavors[0] !== 'N/A' ? `
-            <div style="font-size:12px;font-weight:bold;margin-bottom:6px;text-transform:uppercase;">Select Flavor:</div>
-            <div class="casper-qv-options" id="qv-flavors">
-              ${prod.flavors.map((f, i) => `<button type="button" class="casper-option-chip ${i === 0 ? 'is-selected' : ''}" data-val="${f}">${f}</button>`).join('')}
-            </div>
-          ` : ''}
-
-          ${prod.nics && prod.nics.length > 0 && prod.nics[0] !== 'N/A' ? `
-            <div style="font-size:12px;font-weight:bold;margin-bottom:6px;text-transform:uppercase;">Nicotine Strength:</div>
-            <div class="casper-qv-options" id="qv-nics">
-              ${prod.nics.map((n, i) => `<button type="button" class="casper-option-chip ${i === 0 ? 'is-selected' : ''}" data-val="${n}">${n}</button>`).join('')}
-            </div>
-          ` : ''}
-
-          <button type="button" id="qv-add-cart-btn" class="casper-btn-primary" style="margin-top:14px;">ADD TO CART — $${prod.price.toFixed(2)}</button>
+          <span class="casper-qv-badge">${escapeHtml(cp.tag || cp.category)}</span>
+          <h2 style="font-size:20px;font-weight:700;margin:4px 0 10px;line-height:1.3;">${escapeHtml(cp.title)}</h2>
+          <div style="font-size:13px;color:var(--casper-green-ink);font-weight:bold;margin-bottom:8px;">★ ${Number(cp.rating || 0).toFixed(1)} (${Number(cp.reviews || 0)} reviews)</div>
+          <div class="casper-qv-price">${money(selectedVariant.salePrice ?? selectedVariant.price)}</div>
+          <p style="font-size:13px;color:var(--casper-ink-soft);margin-bottom:12px;line-height:1.5;">${escapeHtml(cp.fullDescription || cp.desc || cp.shortDescription)}</p>
+          <div class="casper-qv-compliance-meta"><span>Brand: ${escapeHtml(cp.brand)}</span><span>Manufacturer: ${escapeHtml(cp.manufacturer)}</span><span>Category: ${escapeHtml(cp.category)} / ${escapeHtml(cp.subcategory)}</span><span>Weight: ${Number(cp.weightOz||0).toFixed(1)} oz</span><span>Slug: ${escapeHtml(cp.slug)}</span><span>${isProductAgeRestricted(cp)?'21+ AGE RESTRICTED':'NOT AGE RESTRICTED'}</span></div>
+          ${variants.length>1 ? `<div style="font-size:12px;font-weight:bold;margin:12px 0 6px;text-transform:uppercase;">Select Variant:</div><div class="casper-qv-options" id="qv-variants">${variantButtons}</div>` : ''}
+          <div id="qv-variant-state" class="casper-qv-variant-state"></div>
+          <div class="casper-qv-tags">${(cp.tags||[]).slice(0,8).map(t=>`<span>#${escapeHtml(t)}</span>`).join('')}</div>
+          <button type="button" id="qv-add-cart-btn" class="casper-btn-primary" style="margin-top:14px;">ADD TO CART</button>
         </div>
       </div>
     `);
 
-    // Wire option chips
-    const flavorBox = document.getElementById('qv-flavors');
-    if (flavorBox) {
-      flavorBox.querySelectorAll('.casper-option-chip').forEach(chip => {
-        chip.addEventListener('click', function () {
-          flavorBox.querySelectorAll('.casper-option-chip').forEach(c => c.classList.remove('is-selected'));
-          this.classList.add('is-selected');
-          selectedFlavor = this.getAttribute('data-val');
-        });
-      });
-    }
+    const variantBox = document.getElementById('qv-variants');
+    variantBox?.querySelectorAll('.casper-option-chip').forEach(chip => chip.addEventListener('click', function(){
+      variantBox.querySelectorAll('.casper-option-chip').forEach(c=>c.classList.remove('is-selected')); this.classList.add('is-selected');
+      selectedVariant = variants.find(v=>String(v.id)===String(this.dataset.variantId)) || variants[0]; renderVariantState();
+    }));
+    renderVariantState();
 
-    const nicBox = document.getElementById('qv-nics');
-    if (nicBox) {
-      nicBox.querySelectorAll('.casper-option-chip').forEach(chip => {
-        chip.addEventListener('click', function () {
-          nicBox.querySelectorAll('.casper-option-chip').forEach(c => c.classList.remove('is-selected'));
-          this.classList.add('is-selected');
-          selectedNic = this.getAttribute('data-val');
-        });
+    document.getElementById('qv-add-cart-btn')?.addEventListener('click', function () {
+      if (isProductAgeRestricted(cp) && !window.requireCasperAgeVerification?.('Age verification is required before adding this product.')) return;
+      const frontendPolicy=window.CasperCompliance?.check?.(cp, '');
+      if(frontendPolicy && !frontendPolicy.allowed) { showToast(frontendPolicy.reason || 'This product is not eligible for purchase under the configured compliance policy.', 'info'); return; }
+      const available = Number(selectedVariant.available ?? selectedVariant.inventory ?? availableInventory(cp));
+      const existing = cart.find(i => i.productId === cp.productId && i.variantId === selectedVariant.id);
+      const nextQty = (existing ? Number(existing.quantity) : 0) + 1;
+      if (nextQty > available) { showToast(`Only ${available} unit${available===1?'':'s'} of this variant are available.`, 'info'); return; }
+      if (existing) existing.quantity = nextQty;
+      else cart.push({
+        id: 'cart_' + Date.now(), productId: cp.productId, variantId: selectedVariant.id, sku: selectedVariant.sku,
+        upc: selectedVariant.upc, title: cp.title, brand: cp.brand, price: Number(selectedVariant.salePrice ?? selectedVariant.price),
+        image: selectedVariant.image || cp.image, flavor: selectedVariant.flavor || (selectedVariant.type==='flavor'?selectedVariant.value:''),
+        nic: selectedVariant.strength || (selectedVariant.type==='strength'?selectedVariant.value:''), weightOz: Number(cp.weightOz||8),
+        ageRestricted: isProductAgeRestricted(cp), minAge: Number(cp.minAge||0), allowedStates: cp.allowedStates||[], quantity: 1
       });
-    }
-
-    document.getElementById('qv-add-cart-btn').addEventListener('click', function () {
-      const existing = cart.find(i => i.title === prod.title && i.flavor === selectedFlavor && i.nic === selectedNic);
-      if (existing) {
-        existing.quantity += 1;
-      } else {
-        cart.push({
-          id: 'prod_' + Date.now(),
-          title: prod.title,
-          price: prod.price,
-          image: prod.image,
-          flavor: selectedFlavor,
-          nic: selectedNic,
-          quantity: 1
-        });
-      }
-      saveCart();
-      closeModal();
-      showToast(`Added "${prod.title}" to cart!`, 'success');
-      openDrawer(cartDrawer, cartOpenBtn);
+      saveCart(); closeModal(); showToast(`Added ${cp.title} (${selectedVariant.value}) to cart.`, 'success'); openDrawer(cartDrawer, cartOpenBtn);
     });
   }
 
@@ -1082,7 +1667,7 @@ document.addEventListener('DOMContentLoaded', function () {
         nics: ['50mg', '20mg'],
         desc: 'Premium authentic Casper Smoke Shop product. 21+ adult enjoyment with lab-tested purity.'
       };
-      openQuickViewModal(matched);
+      const fp = productById(matched.id) || matched; history.pushState({},'',`?product=${encodeURIComponent(fp.productId || fp.id)}`); if (fp.productId && window.renderCasperProductDetail) window.renderCasperProductDetail(fp); else openQuickViewModal(fp);
     }
   });
 
@@ -1483,14 +2068,13 @@ document.addEventListener('DOMContentLoaded', function () {
       return;
     }
 
-    const discountAmount = subtotal * appliedDiscount;
-    const rewardDiscount = Math.min(subtotal - discountAmount, Number(localStorage.getItem('casper_reward_discount') || 0));
-    const shippingState = (localStorage.getItem('casper_shipping_state') || 'in-state').toLowerCase();
-    const isInState = shippingState === 'in-state';
+    const discountAmount = appliedDiscountAmount || (subtotal * appliedDiscount);
+    const shippingArea = (localStorage.getItem('casper_shipping_state') || 'in-state').toLowerCase();
+    const isInState = shippingArea === 'in-state';
     const isFreeShipping = isInState && subtotal >= CASPER_FREE_SHIPPING_THRESHOLD;
     const shippingFee = isFreeShipping ? 0 : (isInState ? 9.99 : CASPER_OUT_OF_STATE_SHIPPING_FEE);
-    const tax = Math.max(0, subtotal - discountAmount - rewardDiscount) * 0.08;
-    const finalTotal = Math.max(0, (subtotal - discountAmount - rewardDiscount) + shippingFee + tax);
+    const tax = Math.max(0, subtotal - discountAmount) * FRONTEND_COMPLIANCE_CONFIG.taxRate;
+    const finalTotal = (subtotal - discountAmount) + shippingFee + tax;
 
     openModal(`
       <h2 class="casper-modal__title">🛍️ Secure Express Checkout</h2>
@@ -1521,6 +2105,10 @@ document.addEventListener('DOMContentLoaded', function () {
             </div>
           </div>
           <div class="casper-form-group">
+            <label>State</label>
+            <input type="text" class="casper-form-input" id="chk-state" placeholder="WY" maxlength="2" autocomplete="address-level1" required>
+          </div>
+          <div class="casper-form-group">
             <label>Shipping Area</label>
             <select class="casper-form-select" id="chk-shipping-area">
               <option value="in-state" ${isInState ? 'selected' : ''}>In-State — Free over $200</option>
@@ -1536,7 +2124,7 @@ document.addEventListener('DOMContentLoaded', function () {
               <button type="button" id="chk-apply-promo" style="padding:0 16px;background:var(--casper-line);color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:bold;">APPLY</button>
             </div>
           </div>
-          ${rewardDiscount > 0 ? `<div style="padding:10px;border:1px solid var(--casper-green-dim);border-radius:7px;color:var(--casper-green-ink);font-size:12px;margin-top:10px;">🎟️ Casper Token Reward: -$${rewardDiscount.toFixed(2)}</div>` : ''}<button type="submit" class="casper-btn-primary" style="margin-top:10px;">PLACE ORDER — $${finalTotal.toFixed(2)}</button>
+          <button type="submit" class="casper-btn-primary" style="margin-top:10px;">PLACE ORDER — $${finalTotal.toFixed(2)}</button>
         </form>
 
         <div style="background:rgba(255,255,255,0.03);border:1px solid var(--casper-line);padding:18px;border-radius:10px;height:fit-content;">
@@ -1544,7 +2132,7 @@ document.addEventListener('DOMContentLoaded', function () {
           ${cart.map(i => `<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px;"><span>${i.quantity}x ${i.title}</span><strong>$${(i.price * i.quantity).toFixed(2)}</strong></div>`).join('')}
           <hr style="border:0;border-top:1px solid var(--casper-line);margin:12px 0;">
           <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;"><span>Subtotal:</span><span>$${subtotal.toFixed(2)}</span></div>
-          ${appliedDiscount > 0 ? `<div style="display:flex;justify-content:space-between;font-size:13px;color:var(--casper-green-ink);margin-bottom:4px;"><span>Discount (20% OFF):</span><span>-$${discountAmount.toFixed(2)}</span></div>` : ''}
+          ${(appliedDiscount > 0 || appliedDiscountAmount > 0) ? `<div style="display:flex;justify-content:space-between;font-size:13px;color:var(--casper-green-ink);margin-bottom:4px;"><span>Coupon discount:</span><span>-$${discountAmount.toFixed(2)}</span></div>` : ''}
           <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:4px;"><span>Shipping:</span><span>${isFreeShipping ? '<strong style="color:var(--casper-green-ink);">FREE</strong>' : '$' + shippingFee.toFixed(2)}</span></div>
           <div class="casper-checkout-shipping-note">${isInState ? (isFreeShipping ? 'In-state free shipping unlocked at $200+.' : 'In-state: spend $' + Math.max(0, CASPER_FREE_SHIPPING_THRESHOLD - subtotal).toFixed(2) + ' more to unlock free shipping.') : 'Out of state: additional shipping charge applies.'}</div>
           <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:8px;"><span>Estimated Tax:</span><span>$${tax.toFixed(2)}</span></div>
@@ -1553,9 +2141,9 @@ document.addEventListener('DOMContentLoaded', function () {
       </div>
     `);
 
-    const shippingArea = document.getElementById('chk-shipping-area');
-    if (shippingArea) {
-      shippingArea.addEventListener('change', function () {
+    const shippingAreaSelect = document.getElementById('chk-shipping-area');
+    if (shippingAreaSelect) {
+      shippingAreaSelect.addEventListener('change', function () {
         localStorage.setItem('casper_shipping_state', this.value);
         openCheckoutModal();
       });
@@ -1563,30 +2151,95 @@ document.addEventListener('DOMContentLoaded', function () {
 
     document.getElementById('chk-apply-promo').addEventListener('click', function () {
       const code = document.getElementById('chk-promo-input').value.trim().toUpperCase();
-      if (code === 'CASPER20') {
-        appliedDiscount = 0.20;
-        showToast('20% Discount Code CASPER20 Applied!', 'success');
-        openCheckoutModal();
-      } else if (code) {
-        showToast('Invalid promo code. Try CASPER20', 'info');
-      }
+      const promo = FRONTEND_COMPLIANCE_CONFIG.promoCodes[code];
+      const email = (document.getElementById('chk-email')?.value || '').trim().toLowerCase();
+      if (!code) { appliedDiscount = 0; appliedDiscountAmount = 0; showToast('Coupon removed.', 'info'); openCheckoutModal(); return; }
+      if (!promo) { showToast('Invalid or unsupported coupon code.', 'info'); return; }
+      if (new Date(promo.expires + 'T23:59:59') < new Date()) { showToast('This coupon has expired.', 'info'); return; }
+      const orders = window.casperFrontendOrderState?.get?.() || {};
+      const priorCustomerUse = Object.values(orders).filter(o => String(o.customer?.email || '').toLowerCase() === email && o.promoCode === code).length;
+      if (promo.firstOrderOnly && priorCustomerUse > 0) { showToast('This coupon is valid for the first order only.', 'info'); return; }
+      if (priorCustomerUse >= Number(promo.usageLimit || Infinity)) { showToast('This coupon has reached its usage limit for this customer.', 'info'); return; }
+      const totalBefore = getCartSubtotal();
+      appliedDiscount = promo.type === 'percent' ? Number(promo.value) : 0;
+      appliedDiscountAmount = promo.type === 'percent' ? totalBefore * Number(promo.value) : Math.min(Number(promo.value), totalBefore);
+      localStorage.setItem('casper_active_coupon', code);
+      showToast(`${code} applied. Sale prices and shipping promotions do not stack with an additional coupon beyond configured rules.`, 'success');
+      openCheckoutModal();
     });
 
     document.getElementById('casper-checkout-form').addEventListener('submit', function (e) {
       e.preventDefault();
-      const orderNum = 'CSP-' + Math.floor(100000 + Math.random() * 900000);
-      const name = document.getElementById('chk-name').value;
-      const email = document.getElementById('chk-email').value.trim().toLowerCase();
-      const account = getStoredAccount(email);
-      const earnedTokens = Math.floor(Math.max(0, subtotal - discountAmount - rewardDiscount));
-      const allOrders = JSON.parse(localStorage.getItem('casper_orders') || '{}');
-      const orders = allOrders[email] || [];
-      orders.push({number:orderNum,date:new Date().toLocaleDateString('en-US'),items:cart.reduce((n,i)=>n+i.quantity,0),total:finalTotal});
-      allOrders[email] = orders;
-      localStorage.setItem('casper_orders', JSON.stringify(allOrders));
-      if (account) { account.tokens = Number(account.tokens || 0) + earnedTokens; saveStoredAccount(account); localStorage.setItem('casper_logged_user', JSON.stringify({name:account.name,email:account.email})); }
-      if (rewardDiscount > 0) localStorage.removeItem('casper_reward_discount');
 
+      if (cart.length === 0) { showToast('Your cart is empty.', 'info'); return; }
+      const restrictedItems = cart.filter(i => i.ageRestricted || isProductAgeRestricted(getFrontendProduct(i.productId)));
+      if (restrictedItems.length && !window.requireCasperAgeVerification?.('Age verification is required before checkout.')) return;
+
+      const name = document.getElementById('chk-name').value.trim();
+      const email = document.getElementById('chk-email').value.trim().toLowerCase();
+      const address = document.getElementById('chk-address').value.trim();
+      const city = document.getElementById('chk-city').value.trim();
+      const zip = document.getElementById('chk-zip').value.trim();
+      const state = document.getElementById('chk-state').value.trim().toUpperCase();
+
+      const addressError = validateAddress({email,address,city,zip});
+      if (addressError) { showToast(addressError, 'info'); return; }
+      if (!/^[A-Z]{2}$/.test(state)) { showToast('Enter a valid 2-letter state code.', 'info'); return; }
+
+      for (const item of cart) {
+        const p = getFrontendProduct(item.productId) || item;
+        const q = validateCartItemQuantity(item, item.quantity);
+        if (!q.ok) { showToast(`${item.title}: ${q.message}`, 'info'); renderCartUI(); return; }
+        const destination = canShipToState(p, state);
+        if (!destination.ok) { showToast(`${item.title}: ${destination.message}`, 'info'); return; }
+        const compliance=window.CasperCompliance?.check?.(p, state, localStorage.getItem('casper_shipping_method') || '');
+        if(compliance && !compliance.allowed) { showToast(`${item.title}: ${compliance.reason || 'Compliance policy blocks this purchase.'}`, 'info'); return; }
+      }
+
+      const checkoutSubtotal = getCartSubtotal();
+      const shippingQuote = calculateShipping(cart, state);
+      const checkoutDiscount = appliedDiscountAmount || (checkoutSubtotal * appliedDiscount);
+      const checkoutTax = Math.max(0, checkoutSubtotal - checkoutDiscount) * FRONTEND_COMPLIANCE_CONFIG.taxRate;
+      const checkoutTotal = Math.max(0, checkoutSubtotal - checkoutDiscount) + shippingQuote.fee + checkoutTax;
+      localStorage.setItem('casper_shipping_state', state);
+      const orderNum = 'CSP-' + Math.floor(100000 + Math.random() * 900000);
+      const paymentToken = `frontend-demo-${Date.now()}`;
+      const order = {
+        number: orderNum, status: 'Paid', paymentStatus: 'Authorized',
+        ageVerificationStatus: restrictedItems.length ? 'Verified' : 'Not required',
+        customer: { name, email },
+        ownerEmail: (getUserSession()?.email || email).toLowerCase(),
+        shippingAddress: { address, city, zip, state },
+        items: cart.map(i => ({...i})),
+        subtotal: checkoutSubtotal,
+        discount: Number(checkoutDiscount.toFixed(2)),
+        shipping: Number(shippingQuote.fee.toFixed(2)),
+        tax: Number(checkoutTax.toFixed(2)),
+        total: Number(checkoutTotal.toFixed(2)),
+        shippingWeightOz: shippingQuote.weightOz,
+        createdAt: new Date().toISOString(),
+        paymentReference: paymentToken, promoCode: localStorage.getItem('casper_active_coupon') || null
+      };
+
+      // Frontend-only inventory reservation/consumption simulation.
+      cart.forEach(item => {
+        const p = getFrontendProduct(item.productId);
+        if (p) {
+          const variant = getVariantForCartItem(item, p);
+          if (variant) {
+            variant.available = Math.max(0, Number(variant.available ?? variant.inventory ?? 0) - Number(item.quantity));
+            variant.inventory = variant.available + Number(variant.reserved || 0);
+            variant.status = variant.available > 0 ? 'Active' : 'Out of Stock';
+          }
+          p.inventory = Math.max(0, Number(p.inventory || 0) - Number(item.quantity));
+          p.inventoryAvailable = availableInventory(p);
+          localStorage.setItem(`casper_inventory_${p.productId}`, String(p.inventory));
+        }
+      });
+      window.casperFrontendOrderState?.save(order);
+      localStorage.removeItem('casper_active_coupon');
+      appliedDiscount = 0;
+      appliedDiscountAmount = 0;
       cart = [];
       saveCart();
       closeModal();
@@ -1595,7 +2248,7 @@ document.addEventListener('DOMContentLoaded', function () {
         <div style="text-align:center;padding:10px;">
           <div style="font-size:48px;margin-bottom:10px;">🎉</div>
           <h2 class="casper-modal__title" style="justify-content:center;">Order Confirmed!</h2>
-          <p class="casper-modal__sub">Thank you, <strong>${name}</strong>! Your order <strong>#${orderNum}</strong> has been placed.</p>
+          <p class="casper-modal__sub">Thank you, <strong>${name}</strong>! Your order <strong>#${orderNum}</strong> has been placed for <strong>$${checkoutTotal.toFixed(2)}</strong>.</p>
           <div style="background:rgba(0,255,135,0.1);border:1px solid var(--casper-green-dim);padding:16px;border-radius:8px;font-size:13px;color:var(--casper-green-ink);margin-bottom:20px;">
             📦 A confirmation email & tracking details have been sent to <strong>${email}</strong>. Estimated Delivery: 2-3 Business Days in discreet packaging.
           </div>
@@ -1894,7 +2547,7 @@ document.addEventListener('DOMContentLoaded', function () {
         <article class="casper-vc-card" data-vc-product-id="${p.id}">
           <button class="casper-vc-card__image-btn" type="button" aria-label="View ${p.title}">
             <span class="casper-vc-badge">${p.tag}</span>
-            <img src="assets/products/${p.id}.svg" alt="${p.title}" loading="lazy" data-original-image="${p.image}">
+            <img src="${p.image}" alt="${p.title}" loading="lazy" onerror="this.onerror=null;this.src='assets/products/${p.id}.svg';">
           </button>
           <div class="casper-vc-card__body">
             <div class="casper-vc-rating" aria-label="${p.rating} out of 5 stars">
@@ -2031,271 +2684,304 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
   // ==========================================
-  // 15. ADDITIVE NAV CATEGORY STORE (demo data)
-  // Existing Vapes/Cigars features are preserved.
+  // 15. FRONTEND E-COMMERCE QA / CATALOG LAYER
   // ==========================================
-  (function initAllNavCategories() {
-    /* ================================================================
-       CASPER CATEGORY STORE
-       Additive e-commerce layer: keeps the existing site intact while
-       making every navbar collection clickable, searchable and routable.
-       ================================================================ */
-    const categoryGroups = {
-      'SHOP ALL': ['Vape Kits','Disposable Vapes','E-Liquids','Glass','Concentrates','Accessories','Deals','Pod Systems','Starter Kits','Nic Salts','Freebase Juice','Zero Nicotine','Wax & Dabs','Live Resin','Cartridges','Bongs','Dab Rigs','Hand Pipes','Bubblers','Grinders','Rolling Papers','Trays & Storage'],
-      'VAPES & DISPOSABLES': ['Vape Kits','Disposable Vapes','Pod Systems','Starter Kits'],
-      'E-LIQUIDS': ['Nic Salts','Freebase Juice','Zero Nicotine'],
-      'CONCENTRATES': ['Wax & Dabs','Live Resin','Cartridges'],
-      'GLASS': ['Bongs','Dab Rigs','Hand Pipes','Bubblers'],
-      'ACCESSORIES': ['Grinders','Rolling Papers','Trays & Storage'],
-      'BRANDS': ['Brands'],
-      'DEALS': ['Deals']
-    };
+  (function initFrontendCommerceLayer() {
+    const rootHost = document.querySelector('main') || document.body;
+    let catalogRoot = document.getElementById('casper-compliance-catalog');
 
-    const navCategories = [
-      'Vape Kits','Disposable Vapes','E-Liquids','Glass','Concentrates','Accessories','Deals',
-      'Pod Systems','Starter Kits','Nic Salts','Freebase Juice','Zero Nicotine','Wax & Dabs',
-      'Live Resin','Cartridges','Bongs','Dab Rigs','Hand Pipes','Bubblers','Grinders',
-      'Rolling Papers','Trays & Storage','Brands'
-    ];
-
-    const productTypes = {
-      'Vape Kits':['Starter Pod Kit','Compact Pod Kit','Refillable Vape Kit','USB-C Vape Kit','Pocket Vape Kit','Dual-Coil Kit','Classic Pod System','Travel Vape Kit','Adjustable Pod Kit','Everyday Vape Kit'],
-      'Disposable Vapes':['Disposable Device','Compact Disposable','Rechargeable Disposable','Pocket Disposable','Mesh Disposable','Long-Lasting Disposable','Slim Disposable','Digital Display Disposable','Classic Disposable','Travel Disposable'],
-      'E-Liquids':['Purple Blend E-Liquid','Citrus Blend E-Liquid','Berry Blend E-Liquid','Mint Blend E-Liquid','Vanilla Blend E-Liquid','Tropical Blend E-Liquid','Classic Blend E-Liquid','Cool Blend E-Liquid','Fruit Blend E-Liquid','Smooth Blend E-Liquid'],
-      'Glass':['Glass Water Pipe','Mini Glass Pipe','Beaker Glass Piece','Straight Tube Glass','Color Accent Glass','Compact Glass Piece','Classic Glass Pipe','Thick Glass Piece','Art Glass Piece','Everyday Glass Piece'],
-      'Concentrates':['Concentrate Accessory','Wax Tool Set','Storage Container','Concentrate Jar','Dab Accessory Kit','Silicone Storage Set','Glass Accessory','Portable Accessory','Cleaning Accessory','Concentrate Organizer'],
-      'Accessories':['4-Piece Grinder','Rolling Tray','Storage Pouch','Paper Pack','Cleaning Brush Set','Odor-Control Bag','Pocket Case','Metal Grinder','Travel Container','Accessory Bundle'],
-      'Pod Systems':['Refillable Pod System','Compact Pod Device','Magnetic Pod System','Dual Pod Kit','Pocket Pod System','USB-C Pod System','Slim Pod Device','Classic Pod Kit','Starter Pod Set','Everyday Pod System'],
-      'Starter Kits':['Beginner Kit','Essential Starter Set','Compact Starter Kit','Easy-Use Kit','Pod Starter Bundle','Travel Starter Kit','Classic Starter Set','Pocket Starter Kit','Simple Pod Bundle','Everyday Starter Kit'],
-      'Nic Salts':['Nic Salt Bottle','Berry Nic Salt','Mint Nic Salt','Citrus Nic Salt','Classic Nic Salt','Cool Nic Salt','Fruit Nic Salt','Smooth Nic Salt','Tropical Nic Salt','Mixed Nic Salt'],
-      'Freebase Juice':['Freebase Juice Bottle','Fruit Freebase Blend','Mint Freebase Blend','Citrus Freebase Blend','Berry Freebase Blend','Classic Freebase Blend','Cool Freebase Blend','Tropical Freebase Blend','Vanilla Freebase Blend','Smooth Freebase Blend'],
-      'Zero Nicotine':['Zero-Nicotine E-Liquid','Fruit Zero Blend','Mint Zero Blend','Citrus Zero Blend','Berry Zero Blend','Classic Zero Blend','Cool Zero Blend','Tropical Zero Blend','Vanilla Zero Blend','Smooth Zero Blend'],
-      'Wax & Dabs':['Dab Tool Kit','Quartz Accessory','Storage Jar Set','Silicone Mat','Cleaning Tool','Glass Dab Accessory','Travel Dab Case','Tool Set','Accessory Stand','Storage Organizer'],
-      'Live Resin':['Live Resin Accessory','Concentrate Storage Jar','Glass Storage Set','Dab Tool Set','Storage Case','Cleaning Accessory','Glass Accessory','Travel Container','Accessory Bundle','Organizer Set'],
-      'Cartridges':['Cartridge Battery','Compact Cartridge Case','USB-C Battery','Protective Cartridge Case','Battery Accessory','Travel Cartridge Case','Storage Tube','Battery Charger','Cartridge Holder','Accessory Set'],
-      'Bongs':['Classic Beaker Bong','Straight Tube Bong','Mini Glass Bong','Ice-Pinch Bong','Color Accent Bong','Compact Water Pipe','Thick Glass Bong','Artisan Glass Bong','Everyday Bong','Glass Water Pipe'],
-      'Dab Rigs':['Compact Dab Rig','Glass Dab Rig','Mini Rig','Recycler-Style Rig','Classic Dab Rig','Travel Rig','Thick Glass Rig','Simple Rig','Accessory Rig Set','Everyday Dab Rig'],
-      'Hand Pipes':['Classic Hand Pipe','Pocket Glass Pipe','Color Accent Pipe','Textured Hand Pipe','Mini Hand Pipe','Art Glass Pipe','Simple Glass Pipe','Travel Pipe','Everyday Hand Pipe','Glass Pipe Set'],
-      'Bubblers':['Mini Bubbler','Classic Glass Bubbler','Pocket Bubbler','Color Accent Bubbler','Compact Bubbler','Thick Glass Bubbler','Art Glass Bubbler','Simple Bubbler','Travel Bubbler','Everyday Bubbler'],
-      'Grinders':['Aluminum Grinder','4-Piece Grinder','Compact Grinder','Metal Grinder','Textured Grinder','Pocket Grinder','Classic Grinder','Color Accent Grinder','Travel Grinder','Grinder Set'],
-      'Rolling Papers':['Classic Rolling Papers','King-Size Papers','Slim Papers','Unbleached Papers','Paper Tips Set','Rolling Paper Bundle','Natural Papers','Compact Paper Pack','Rolling Tips Pack','Paper Accessory Set'],
-      'Trays & Storage':['Rolling Tray','Storage Box','Travel Storage Case','Metal Tray','Compact Tray','Organizer Box','Accessory Pouch','Stackable Storage','Pocket Container','Tray Bundle'],
-      'Brands':['Casper Essentials','Cloud Series','Glassworks Collection','Everyday Accessories','Premium Collection','Pocket Series','Classic Collection','Studio Glass','Travel Essentials','Signature Collection'],
-      'Deals':['Value Bundle','Starter Bundle Deal','Accessory Bundle Deal','Everyday Essentials Deal','Glassware Special','Storage Bundle','Pocket Kit Deal','Best Value Set','Featured Accessory Deal','Casper Combo Pack']
-    };
-
-    const colors=['Midnight Black','Neon Lime','Purple Rush','Crystal Clear','Ocean Blue','Sunset Orange','Smoke Grey','Arctic White','Rose Violet','Classic Silver'];
-    const allProducts=[];
-    navCategories.forEach((cat,ci)=>{
-      const names=productTypes[cat]||productTypes['Accessories'];
-      for(let i=0;i<10;i++) {
-        const base=8.99+((ci*7+i*11)%76)+0.99;
-        allProducts.push({
-          id:`nav-${ci}-${i}`,
-          title:`${colors[i]} ${names[i]}`,
-          category:cat,
-          image:`assets/products/nav-${ci}-${i}.svg`,
-          price:Number(base.toFixed(2)),
-          oldPrice:Number((15.99+((ci*9+i*13)%89)+0.99).toFixed(2)),
-          rating:(4.5+((ci+i)%6)/10).toFixed(1),
-          reviews:17+((ci*37+i*19)%420),
-          tag:(i%3===0?'FEATURED':i%3===1?'POPULAR':'VALUE PICK'),
-          desc:`Premium-style sample catalog item for ${cat}. This demo product includes a storefront-ready description, pricing, rating and review information.`,
-          color:colors[i]
-        });
+    function ensureCatalogRoot() {
+      if (!catalogRoot) {
+        catalogRoot = document.createElement('section');
+        catalogRoot.id = 'casper-compliance-catalog';
+        catalogRoot.hidden = true;
+        catalogRoot.setAttribute('aria-label', 'Casper product catalog');
+        rootHost.appendChild(catalogRoot);
       }
-    });
-
-    const main=document.querySelector('main');
-    if(!main) return;
-    let root=document.getElementById('casper-nav-store');
-    if(!root){
-      root=document.createElement('section');
-      root.id='casper-nav-store';
-      root.className='casper-nav-store';
-      root.hidden=true;
-      main.appendChild(root);
+      return catalogRoot;
     }
 
-    const homeSections=document.createElement('div');
-    homeSections.id='casper-nav-home-sections';
-    const homeCats=Object.keys(categoryGroups);
+    const categoryMap = {
+      'SHOP ALL': null, 'VAPE KITS': ['Vape Kits'], 'DISPOSABLE VAPES': ['Disposable Vapes'],
+      'E-LIQUIDS': ['E-Liquids'], 'GLASS': ['Glass'], 'CONCENTRATES': ['Concentrates'],
+      'ACCESSORIES': ['Accessories'], 'DEALS': ['Deals'], 'VAPES & DISPOSABLES': ['Vapes','Vape Kits','Disposable Vapes'],
+      'NIC SALTS': ['Nic Salts'], 'FREEBASE JUICE': ['Freebase Juice','E-Liquids'], 'ZERO NICOTINE': ['Zero Nicotine','E-Liquids'],
+      'WAX & DABS': ['Wax & Dabs','Concentrates'], 'LIVE RESIN': ['Live Resin','Concentrates'], 'CARTRIDGES': ['Cartridges','Concentrates'],
+      'BONGS': ['Bongs','Glass'], 'DAB RIGS': ['Dab Rigs','Glass'], 'HAND PIPES': ['Hand Pipes','Glass'], 'BUBBLERS': ['Bubblers','Glass'],
+      'GRINDERS': ['Grinders','Accessories'], 'ROLLING PAPERS': ['Rolling Papers','Accessories'], 'TRAYS & STORAGE': ['Trays & Storage','Accessories'],
+      'BRANDS': null
+    };
+    const sorters = {
+      relevance: (a,b) => Number(b.featured)-Number(a.featured) || Number(b.rating||0)-Number(a.rating||0),
+      price_asc: (a,b) => Number(a.salePrice)-Number(b.salePrice),
+      price_desc: (a,b) => Number(b.salePrice)-Number(a.salePrice),
+      newest: (a,b) => String(b.productId).localeCompare(String(a.productId)),
+      rating: (a,b) => Number(b.rating||0)-Number(a.rating||0)
+    };
 
-    function money(n){return '$'+Number(n).toFixed(2)}
-    function esc(v){return String(v).replace(/[&<>'"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]))}
-    function card(p){
-      return `<article class="cns-card" data-cns-id="${p.id}">
-        <button class="cns-image" type="button" aria-label="View ${esc(p.title)}">
-          <span>${esc(p.tag)}</span><img src="${p.image}" alt="${esc(p.title)}" loading="lazy" onerror="this.onerror=null;this.src='assets/products/nav-0-0.svg';">
-        </button>
-        <div class="cns-card-body">
-          <div class="cns-rating">★★★★★ <small>${p.rating} · ${p.reviews} reviews</small></div>
-          <h3>${esc(p.title)}</h3>
-          <p class="cns-price">${money(p.price)} <del>${money(p.oldPrice)}</del></p>
-          <button class="cns-view" type="button">VIEW PRODUCT</button>
-        </div>
-      </article>`;
+    function allCatalogProducts() {
+      return frontendProducts.filter((p,i,a) => a.findIndex(x => x.productId === p.productId) === i);
+    }
+    const navbarSubcategoryKeys = new Set([
+      'VAPE KITS','DISPOSABLE VAPES','POD SYSTEMS','STARTER KITS','NIC SALTS','FREEBASE JUICE','ZERO NICOTINE',
+      'WAX & DABS','LIVE RESIN','CARTRIDGES','BONGS','DAB RIGS','HAND PIPES','BUBBLERS','GRINDERS','ROLLING PAPERS','TRAYS & STORAGE'
+    ]);
+    function getCategoryProducts(category) {
+      const key = String(category || 'SHOP ALL').toUpperCase();
+      const all = allCatalogProducts();
+      if (key === 'DEALS') return all.filter(p => Number(p.compareAt || 0) > Number(p.salePrice || p.price || 0));
+      if (navbarSubcategoryKeys.has(key)) {
+        const sub = all.filter(p => String(p.subcategory || '').toUpperCase() === key);
+        if (sub.length) return sub;
+      }
+      const cats = categoryMap[key];
+      if (!cats) return all;
+      return all.filter(p => cats.some(c => String(p.category).toLowerCase() === c.toLowerCase()));
+    }
+    function productCard(p) {
+      const available = availableInventory(p), out = available <= 0 || p.status === 'Discontinued' || p.status === 'Draft';
+      const sale = Number(p.salePrice || p.price), compare = Number(p.compareAt || sale);
+      return `<article class="casper-fec-card" data-fec-id="${escapeHtml(p.productId)}">
+        <button class="casper-fec-media" type="button" aria-label="View ${escapeHtml(p.title)}">${p.tag?`<span class="casper-fec-badge">${escapeHtml(p.tag)}</span>`:''}
+          <img src="${escapeHtml(p.image || imageFallback(p.title))}" alt="${escapeHtml(p.title)}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src=(window.casperRealFallback ? window.casperRealFallback(this.alt) : window.casperImageFallback(this.alt));"></button>
+        <div class="casper-fec-body"><div class="casper-fec-meta"><span>${'★'.repeat(Math.min(5,Math.round(Number(p.rating||0))))}${'☆'.repeat(Math.max(0,5-Math.round(Number(p.rating||0))))}</span><small>${Number(p.rating||0).toFixed(1)}</small></div>
+          <div class="casper-fec-brand">${escapeHtml(p.brand)} · ${escapeHtml(p.subcategory)}</div>
+          <h3>${escapeHtml(p.title)}</h3><p>${escapeHtml(p.shortDescription)}</p>
+          <div class="casper-fec-price"><strong>$${sale.toFixed(2)}</strong>${compare>sale?`<del>$${compare.toFixed(2)}</del>`:''}</div>
+          <div class="casper-fec-stock ${out?'is-out':available<=FRONTEND_COMPLIANCE_CONFIG.lowStockThreshold?'is-low':''}">${out?'OUT OF STOCK':available<=FRONTEND_COMPLIANCE_CONFIG.lowStockThreshold?`ONLY ${available} LEFT`:`${available} IN STOCK`}</div>
+          <div class="casper-fec-identifiers"><span>SKU ${escapeHtml(p.sku)}</span><span>UPC ${escapeHtml(p.upc)}</span></div>
+          <div class="casper-fec-variant-note">${(p.variants||[]).length} variant${(p.variants||[]).length===1?'':'s'} · ${isProductAgeRestricted(p)?'21+ restricted':'General merchandise'}</div>
+          <button type="button" class="casper-fec-view">VIEW DETAILS</button>
+        </div></article>`;
     }
 
-    function section(cat){
-      const items=getProductsForPage(cat);
-      return `<section class="cns-home-section" data-cns-main-category="${esc(cat)}">
-        <div class="cns-section-head"><div><span>CASPER SMOKE SHOP</span><h2>${esc(cat)}</h2><small class="cns-section-sub">${items.length} products across this collection</small></div><a href="?category=${encodeURIComponent(cat)}">VIEW ALL →</a></div>
-        <div class="cns-grid">${items.slice(0,5).map(card).join('')}
-          <a class="cns-more" href="?category=${encodeURIComponent(cat)}"><b>+</b><strong>SHOW MORE</strong><small>View all ${items.length} products</small></a>
-        </div>
-      </section>`;
-    }
-    homeSections.innerHTML=homeCats.map(section).join('');
-    const oldHome=document.getElementById('casper-nav-home-sections');
-    if(oldHome) oldHome.remove();
-    const hero=main.querySelector('.cc-hero');
-    if(hero) hero.insertAdjacentElement('afterend',homeSections);
-    else main.insertBefore(homeSections,main.firstElementChild || root);
-    const homeEl=document.getElementById('casper-nav-home-sections');
-
-    function enterCollectionMode(){
-      document.body.classList.add('casper-nav-category-mode');
+    function renderCatalog(category, query='', filter='all', sort='relevance', brand='all', price='all') {
+      const root=ensureCatalogRoot(), key=String(category||'SHOP ALL').toUpperCase();
+      let list=getCategoryProducts(key), q=normalizeSearch(query);
+      list=list.filter(p => !['Restricted/Blocked','Recalled/Deactivated'].includes(p.compliance_status) && p.recall_status !== 'Recalled' && !(isProductAgeRestricted(p) && p.compliance_status && p.compliance_status !== 'Approved'));
+      if(q) list=list.filter(p=>normalizeSearch(`${p.title} ${p.brand} ${p.manufacturer} ${p.category} ${p.subcategory} ${p.sku} ${p.upc} ${p.tags.join(' ')} ${(p.variants||[]).map(v=>`${v.value} ${v.size||''} ${v.flavor||''} ${v.strength||''} ${v.color||''} ${v.sku} ${v.upc}`).join(' ')}`).includes(q));
+      if(brand!=='all') list=list.filter(p=>String(p.brand).toLowerCase()===String(brand).toLowerCase());
+      if(price==='under25') list=list.filter(p=>Number(p.salePrice)<=25);
+      if(price==='25to50') list=list.filter(p=>Number(p.salePrice)>25&&Number(p.salePrice)<=50);
+      if(price==='50to100') list=list.filter(p=>Number(p.salePrice)>50&&Number(p.salePrice)<=100);
+      if(price==='100plus') list=list.filter(p=>Number(p.salePrice)>100);
+      if(filter==='in') list=list.filter(p=>availableInventory(p)>0 && p.status==='Active');
+      if(filter==='low') list=list.filter(p=>availableInventory(p)>0&&availableInventory(p)<=FRONTEND_COMPLIANCE_CONFIG.lowStockThreshold);
+      if(filter==='sale') list=list.filter(p=>Number(p.compareAt)>Number(p.salePrice));
+      if(filter==='restricted') list=list.filter(isProductAgeRestricted);
+      if(filter==='out') list=list.filter(p=>availableInventory(p)<=0 || p.status==='Out of Stock');
+      if(filter==='discontinued') list=list.filter(p=>p.status==='Discontinued');
+      list.sort(sorters[sort]||sorters.relevance);
+      const brands=[...new Set(getCategoryProducts(key).map(p=>p.brand).filter(Boolean))].sort();
+      const counts={all:getCategoryProducts(key).length,in:getCategoryProducts(key).filter(p=>availableInventory(p)>0&&p.status==='Active').length,low:getCategoryProducts(key).filter(p=>availableInventory(p)>0&&availableInventory(p)<=FRONTEND_COMPLIANCE_CONFIG.lowStockThreshold).length,out:getCategoryProducts(key).filter(p=>availableInventory(p)<=0||p.status==='Out of Stock').length};
       root.hidden=false;
-      homeEl.hidden=true;
-    }
-    function leaveCollectionMode(){
-      document.body.classList.remove('casper-nav-category-mode');
-      root.hidden=true;
-      homeEl.hidden=false;
+      root.innerHTML=`<div class="cc-wrap casper-fec-wrap"><div class="casper-fec-head"><div><span>CASPER SMOKE SHOP / CATALOG</span><h1>${escapeHtml(key)}</h1><p>${list.length} matching product${list.length===1?'':'s'} · ${counts.all} catalog records</p></div><a class="casper-fec-back" href="./">← HOME</a></div>
+        <div class="casper-fec-toolbar">
+          <input id="casper-fec-search" type="search" value="${escapeHtml(query)}" placeholder="Search name, brand, manufacturer, SKU, UPC, size or flavor…" aria-label="Search catalog">
+          <select id="casper-fec-brand" aria-label="Filter by brand"><option value="all">All brands</option>${brands.map(b=>`<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`).join('')}</select>
+          <select id="casper-fec-price" aria-label="Filter by price"><option value="all">All prices</option><option value="under25">Under $25</option><option value="25to50">$25–$50</option><option value="50to100">$50–$100</option><option value="100plus">$100+</option></select>
+          <select id="casper-fec-stock" aria-label="Filter by availability"><option value="all">All availability (${counts.all})</option><option value="in">In stock (${counts.in})</option><option value="low">Low stock (${counts.low})</option><option value="out">Out of stock (${counts.out})</option><option value="sale">On sale</option><option value="restricted">21+ restricted</option><option value="discontinued">Discontinued</option></select>
+          <select id="casper-fec-sort" aria-label="Sort products"><option value="relevance">Relevance</option><option value="price_asc">Price: low to high</option><option value="price_desc">Price: high to low</option><option value="newest">Newest</option><option value="rating">Top rated</option></select>
+        </div>
+        <div class="casper-fec-grid">${list.map(productCard).join('')||'<div class="casper-fec-empty"><strong>No products found</strong><span>Try another brand, category, price range, availability filter, SKU, UPC, size or flavor.</span><button type="button" id="casper-fec-clear" class="casper-btn-primary">CLEAR FILTERS</button></div>'}</div></div>`;
+      const stock=document.getElementById('casper-fec-stock'), sortEl=document.getElementById('casper-fec-sort'), search=document.getElementById('casper-fec-search'), brandEl=document.getElementById('casper-fec-brand'), priceEl=document.getElementById('casper-fec-price');
+      if(stock) stock.value=filter; if(sortEl) sortEl.value=sort; if(brandEl) brandEl.value=brand; if(priceEl) priceEl.value=price;
+      const rerender=()=>renderCatalog(category,search?.value||'',stock?.value||'all',sortEl?.value||'relevance',brandEl?.value||'all',priceEl?.value||'all');
+      let timer; search?.addEventListener('input',e=>{clearTimeout(timer);timer=setTimeout(rerender,120);});
+      [stock,sortEl,brandEl,priceEl].forEach(el=>el?.addEventListener('change',rerender));
+      document.getElementById('casper-fec-clear')?.addEventListener('click',()=>renderCatalog(category));
+      window.scrollTo({top:0,behavior:'smooth'});
     }
 
-    function resolveGroup(cat){
-      const key=String(cat||'').trim();
-      const upper=key.toUpperCase();
-      if(upper==='VAPES') return 'Vape Kits';
-      if(upper==='CIGARS') return 'Deals';
-      if(upper==='SHOP ALL') return 'SHOP ALL';
-      if(categoryGroups[upper]) return upper;
-      return key;
+    function renderHomeCategorySamples() {
+      const host = document.getElementById('casper-home-category-samples-content');
+      if (!host) return;
+      const sections = [
+        ['Vape Kits', 'VAPE KITS', 'Starter devices and demo kits'],
+        ['E-Liquids', 'E-LIQUIDS', 'Demo flavors and strengths'],
+        ['Glass', 'GLASS', 'Bongs, rigs and hand pipes'],
+        ['Concentrates', 'CONCENTRATES', 'Demo concentrate accessories'],
+        ['Accessories', 'ACCESSORIES', 'Everyday smoke shop accessories'],
+        ['Cigars', 'CIGARS', 'Premium cigar demo selection']
+      ];
+      host.innerHTML = sections.map(([key, title, subtitle]) => {
+        const list = getCategoryProducts(key).filter(p => p.status !== 'Discontinued').slice(0, 30);
+        return `<section class="casper-home-sample-block" aria-labelledby="home-sample-${key.replace(/[^a-z0-9]+/gi,'-')}">
+          <div class="casper-home-sample-head">
+            <div><span class="casper-home-sample-eyebrow">CASPER COLLECTION</span><h2 id="home-sample-${key.replace(/[^a-z0-9]+/gi,'-')}">${escapeHtml(title)}</h2><p>${escapeHtml(subtitle)}</p></div>
+            <a class="casper-home-sample-view" href="?category=${encodeURIComponent(key)}">VIEW ALL ${escapeHtml(title)} →</a>
+          </div>
+          <div class="casper-fec-grid casper-home-sample-grid">${list.map(productCard).join('')}</div>
+        </section>`;
+      }).join('');
     }
 
-    function getProductsForPage(cat){
-      const key=resolveGroup(cat);
-      if(key==='SHOP ALL') return allProducts.slice();
-      if(categoryGroups[key]) {
-        const cats=categoryGroups[key];
-        return allProducts.filter(p=>cats.includes(p.category));
+    function renderProductDetailPage(p) {
+      const root = ensureCatalogRoot();
+      const main = root.closest('main') || document.querySelector('main');
+      if (main) Array.from(main.children).forEach(el => { if (el !== root) { el.setAttribute('data-casper-fec-hidden','true'); el.style.display='none'; } });
+      root.hidden = false;
+      const variants = Array.isArray(p.variants) && p.variants.length ? p.variants : [{id:`${p.productId}-default`,value:'Standard',price:p.salePrice||p.price,inventory:Math.max(8,p.inventory||8),available:Math.max(8,p.inventory||8),image:p.image,sku:p.sku,upc:p.upc}];
+      let selected = variants[0];
+      const money = n => `$${Number(n||0).toFixed(2)}`;
+      const related = allCatalogProducts().filter(x => x.productId !== p.productId && (x.subcategory === p.subcategory || x.category === p.category)).filter(x => x.status !== 'Discontinued').slice(0,6);
+      const image = selected.image || p.image || imageFallback(p.title);
+      root.innerHTML = `<div class="casper-product-page">
+        <button type="button" class="casper-fec-back">← BACK TO PRODUCTS</button>
+        <div class="casper-product-detail-grid">
+          <div class="casper-product-detail-media"><img id="detail-main-image" src="${escapeHtml(image)}" alt="${escapeHtml(p.title)}" loading="eager"></div>
+          <div class="casper-product-detail-info">
+            <span class="casper-fec-badge">${escapeHtml(p.tag || p.category)}</span>
+            <h1>${escapeHtml(p.title)}</h1>
+            <div class="casper-detail-rating">★ ${Number(p.rating||0).toFixed(1)} <span>(${Number(p.reviews||0)} reviews)</span></div>
+            <div id="detail-price" class="casper-detail-price">${money(selected.salePrice ?? selected.price)}</div>
+            <div class="casper-detail-offers"><strong>OFFERS</strong><span>20% OFF first order with CASPER20</span><span>Free in-state shipping on $200+</span></div>
+            <p class="casper-detail-description">${escapeHtml(p.fullDescription || p.desc || p.shortDescription)}</p>
+            <div class="casper-detail-specs"><div><b>Brand</b><span>${escapeHtml(p.brand)}</span></div><div><b>Manufacturer</b><span>${escapeHtml(p.manufacturer)}</span></div><div><b>SKU</b><span id="detail-sku">${escapeHtml(selected.sku || p.sku)}</span></div><div><b>UPC</b><span id="detail-upc">${escapeHtml(selected.upc || p.upc)}</span></div><div><b>Category</b><span>${escapeHtml(p.category)} / ${escapeHtml(p.subcategory)}</span></div><div><b>Weight</b><span>${Number(p.weightOz||0).toFixed(1)} oz</span></div></div>
+            <label class="casper-detail-label">SELECT SIZE / WEIGHT / QUANTITY</label>
+            <div id="detail-variants" class="casper-detail-variants">${variants.map((v,i)=>`<button type="button" class="casper-detail-variant ${i===0?'is-selected':''}" data-variant-id="${escapeHtml(v.id)}">${escapeHtml(v.value||'Standard')}<small>${money(v.salePrice??v.price)}</small></button>`).join('')}</div>
+            <div id="detail-stock" class="casper-detail-stock"></div>
+            <div class="casper-detail-buy"><label>Quantity <input id="detail-qty" type="number" min="1" value="1"></label><button id="detail-add" class="casper-btn-primary" type="button">ADD TO CART</button></div>
+            <div class="casper-detail-meta">${isProductAgeRestricted(p)?'21+ AGE RESTRICTED · AGE VERIFICATION REQUIRED':'Standard product'} · Secure checkout · Discreet packaging</div>
+          </div>
+        </div>
+        <section class="casper-related-products"><div class="casper-home-sample-head"><div><span class="casper-home-sample-eyebrow">YOU MAY ALSO LIKE</span><h2>RELATED PRODUCTS</h2><p>More products from ${escapeHtml(p.subcategory || p.category)}.</p></div></div><div class="casper-fec-grid">${related.map(productCard).join('')}</div></section>
+      </div>`;
+      const img=document.getElementById('detail-main-image'); if(img) img.onerror=function(){this.onerror=null;this.src=window.casperRealFallback?window.casperRealFallback(p.subcategory||p.category):imageFallback(p.title);};
+      const price=document.getElementById('detail-price'), stock=document.getElementById('detail-stock'), add=document.getElementById('detail-add'), qty=document.getElementById('detail-qty');
+      function update(){
+        const available=Math.max(0,Number(selected.available??selected.inventory??p.inventory??0));
+        price.textContent=money(selected.salePrice??selected.price);
+        document.getElementById('detail-sku').textContent=selected.sku||p.sku||'';
+        document.getElementById('detail-upc').textContent=selected.upc||p.upc||'';
+        stock.className='casper-detail-stock '+(available<=0?'is-out':available<=5?'is-low':'is-in');
+        stock.textContent=available<=0?'OUT OF STOCK':available<=5?`ONLY ${available} LEFT`:`${available} ITEMS IN STOCK`;
+        add.disabled=available<=0; add.textContent=available<=0?'OUT OF STOCK':`ADD TO CART — ${money(selected.salePrice??selected.price)}`;
+        if(img && selected.image) img.src=selected.image;
+        if(Number(qty.value)>available) qty.value=Math.max(1,available);
       }
-      return allProducts.filter(p=>p.category===key);
+      document.querySelectorAll('.casper-detail-variant').forEach(btn=>btn.addEventListener('click',()=>{document.querySelectorAll('.casper-detail-variant').forEach(x=>x.classList.remove('is-selected'));btn.classList.add('is-selected');selected=variants.find(v=>String(v.id)===String(btn.dataset.variantId))||variants[0];update();}));
+      add.addEventListener('click',()=>{
+        if(isProductAgeRestricted(p)&&!window.requireCasperAgeVerification?.('Age verification is required before adding this product.')) return;
+        const frontendPolicy=window.CasperCompliance?.check?.(p, localStorage.getItem('casper_shipping_state') || '');
+        if(frontendPolicy && !frontendPolicy.allowed && p.compliance_status) { showToast(frontendPolicy.reason || 'This product is not eligible for purchase under the configured compliance policy.', 'info'); return; }
+        const q=Math.max(1,Number(qty.value||1)), available=Number(selected.available??selected.inventory??0);
+        if(q>available){showToast(`Only ${available} items available.`, 'info');return;}
+        const existing=cart.find(i=>i.productId===p.productId&&i.variantId===selected.id);
+        if(existing) existing.quantity+=q; else cart.push({id:'cart_'+Date.now(),productId:p.productId,variantId:selected.id,sku:selected.sku,upc:selected.upc,title:p.title,brand:p.brand,price:Number(selected.salePrice??selected.price),image:selected.image||p.image,weightOz:Number(p.weightOz||8),ageRestricted:isProductAgeRestricted(p),minAge:Number(p.minAge||0),quantity:q});
+        saveCart(); showToast(`Added ${p.title} to cart.`, 'success'); openDrawer(cartDrawer,cartOpenBtn);
+      });
+      update(); window.scrollTo({top:0,behavior:'smooth'});
     }
 
-    function productPage(cat,query=''){
-      const pageName=resolveGroup(cat);
-      let list=getProductsForPage(pageName);
-      const q=String(query||'').trim().toLowerCase();
-      if(q) list=list.filter(p=>`${p.title} ${p.category} ${p.color} ${p.tag}`.toLowerCase().includes(q));
+    window.renderCasperProductDetail = renderProductDetailPage;
 
-      enterCollectionMode();
-      root.innerHTML=`<div class="cns-wrap">
-        <div class="cns-page-head">
-          <div><span>CASPER SMOKE SHOP / COLLECTION</span><h1>${esc(pageName)}</h1><p>${list.length} products available in this collection</p></div>
-          <a href="./" class="cns-back">← HOME</a>
-        </div>
-        <div class="cns-breadcrumb">HOME / ${esc(pageName)}</div>
-        <label class="cns-search">SEARCH THIS COLLECTION <input id="cns-search" type="search" value="${esc(query)}" placeholder="Search products in ${esc(pageName)}..."></label>
-        <div class="cns-grid cns-page-grid" id="cns-products">${list.map(card).join('')||'<p class="cns-empty">No matching products. Try another search.</p>'}</div>
-      </div>`;
-      window.scrollTo({top:0,behavior:'smooth'});
+    function showCatalog(category) {
+      const root=ensureCatalogRoot(), main=root.closest('main')||document.querySelector('main');
+      if(main) Array.from(main.children).forEach(el=>{if(el!==root){el.setAttribute('data-casper-fec-hidden','true');el.style.display='none';}});
+      renderCatalog(category);
     }
-
-    function detail(p){
-      enterCollectionMode();
-      const rec=allProducts.filter(x=>x.category===p.category&&x.id!==p.id).slice(0,5);
-      root.innerHTML=`<div class="cns-wrap">
-        <a href="?category=${encodeURIComponent(p.category)}" class="cns-back">← BACK TO ${esc(p.category.toUpperCase())}</a>
-        <div class="cns-breadcrumb">HOME / ${esc(p.category)} / ${esc(p.title)}</div>
-        <div class="cns-detail">
-          <div class="cns-detail-art"><div class="cns-art cns-art--image"><span class="cns-detail-tag">${esc(p.tag)}</span><img src="${p.image}" alt="${esc(p.title)}" onerror="this.onerror=null;this.src='assets/products/nav-0-0.svg';"></div></div>
-          <div class="cns-detail-info"><span class="cns-kicker">${esc(p.tag)}</span><h1>${esc(p.title)}</h1><div class="cns-rating">★★★★★ <small>${p.rating} · ${p.reviews} reviews</small></div><h2>${money(p.price)} <del>${money(p.oldPrice)}</del></h2><p>${esc(p.desc)}</p><div class="cns-detail-specs"><div><strong>Category</strong><span>${esc(p.category)}</span></div><div><strong>Customer rating</strong><span>${p.rating}/5</span></div><div><strong>Reviews</strong><span>${p.reviews} verified-style reviews</span></div><div><strong>Offer</strong><span>${esc(p.tag)}</span></div></div><button class="cns-view cns-detail-cta" type="button" data-cns-backcat="${esc(p.category)}">CONTINUE SHOPPING</button><small class="cns-demo-note">Demo product data for storefront development.</small></div>
-        </div>
-        <div class="cns-section-head"><div><span>RELATED PRODUCTS</span><h2>You may also like</h2></div><a href="?category=${encodeURIComponent(p.category)}">VIEW CATEGORY →</a></div>
-        <div class="cns-grid cns-related-grid">${rec.map(card).join('')}</div>
-      </div>`;
-      window.scrollTo({top:0,behavior:'smooth'});
+    function leaveCatalog() {
+      if(!catalogRoot)return; catalogRoot.hidden=true;
+      const main=catalogRoot.closest('main');
+      if(main) Array.from(main.children).forEach(el=>{if(el.hasAttribute('data-casper-fec-hidden')){el.style.display='';el.removeAttribute('data-casper-fec-hidden');}});
     }
-
-    function routeFromUrl(){
-      const raw=new URLSearchParams(location.search).get('category');
-      if(!raw){leaveCollectionMode();return;}
-      productPage(decodeURIComponent(raw));
+    function categoryFromLink(link) {
+      const text=(link.textContent||'').replace(/[⌄→+]/g,' ').replace(/\s+/g,' ').trim().toUpperCase();
+      if(categoryMap[text] || ['SHOP ALL','DEALS','BRANDS','VAPES & DISPOSABLES'].includes(text)) return text;
+      if(text==='VAPES') return 'VAPES & DISPOSABLES';
+      return null;
     }
-
-    // Explicitly route every navbar main/subcategory link. This runs before the
-    // older navigation compatibility handler so submenu items always open their
-    // own product listing page instead of only closing the dropdown.
-    document.addEventListener('click', function(e){
-      const link=e.target.closest('.cc-nav a, .cc-mnav__group a');
-      if(!link) return;
-      const text=(link.textContent||'').replace(/[⌄→]/g,'').trim();
-      const allNames=Object.keys(categoryGroups).concat(navCategories);
-      const match=allNames.find(name=>name.toLowerCase()===text.toLowerCase());
-      if(!match) return;
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      if(typeof closeAllDrawers==='function') closeAllDrawers();
-      history.pushState({},'',`?category=${encodeURIComponent(match)}`);
-      productPage(match);
-    }, true);
 
     document.addEventListener('click',e=>{
-      const a=e.target.closest('a');
-      if(a){
-        const label=(a.textContent||'').replace(/[+→⌄]/g,'').trim();
-        const href=a.getAttribute('href')||'';
-        const isNavLink=!!a.closest('.cc-nav') || !!a.closest('.cc-mnav');
-        const normalized=label.toUpperCase();
-        if(isNavLink && (categoryGroups[normalized] || navCategories.some(c=>c.toUpperCase()===normalized))){
-          e.preventDefault();
-          const cat=normalized;
-          history.pushState({},'',`?category=${encodeURIComponent(cat)}`);
-          productPage(cat);
-          return;
-        }
-        if(a.classList.contains('cns-more') || a.closest('.cns-home-section .cns-section-head')){
-          const hrefCat=new URL(a.href,location.href).searchParams.get('category');
-          if(hrefCat){e.preventDefault();history.pushState({},'',`?category=${encodeURIComponent(hrefCat)}`);productPage(hrefCat);return;}
+      const nav=e.target.closest('.cc-nav a,.cc-mnav__group a,.cc-footer__col a');
+      if(nav){
+        const cat=categoryFromLink(nav);
+        if(cat && !/^https?:/i.test(nav.getAttribute('href')||'')){
+          e.preventDefault();e.stopImmediatePropagation();history.pushState({},'',`?category=${encodeURIComponent(cat)}`);showCatalog(cat);return;
         }
       }
-
-      const cardEl=e.target.closest('[data-cns-id]');
-      if(cardEl){
-        const p=allProducts.find(x=>x.id===cardEl.dataset.cnsId);
-        if(p){e.preventDefault();detail(p);return;}
+      const card=e.target.closest('[data-fec-id]');
+      if(card && e.target.closest('.casper-fec-media,.casper-fec-view,.casper-fec-body h3')){
+        const p=getFrontendProduct(card.dataset.fecId);
+        if(p){e.preventDefault();if(isProductAgeRestricted(p)&&!window.requireCasperAgeVerification?.('Age verification is required to view restricted product details.'))return;history.pushState({},'',`?product=${encodeURIComponent(p.productId)}`);renderProductDetailPage(p);}
       }
-      const back=e.target.closest('[data-cns-backcat]');
-      if(back){e.preventDefault();history.pushState({},'',`?category=${encodeURIComponent(back.dataset.cnsBackcat)}`);productPage(back.dataset.cnsBackcat);}
-    });
+      if(e.target.closest('.casper-fec-back')){e.preventDefault();history.pushState({},'', './');leaveCatalog();}
+      const zoom=e.target.closest('.casper-qv-image-button'); if(zoom) zoom.classList.toggle('is-zoomed');
+    },true);
 
-    document.addEventListener('input',e=>{
-      if(e.target.id==='cns-search'){
-        const q=e.target.value;
-        const cat=root.querySelector('.cns-page-head h1')?.textContent||'SHOP ALL';
-        const cursor=q.length;
-        productPage(cat,q);
-        const inp=document.getElementById('cns-search');
-        if(inp){inp.focus();inp.setSelectionRange(cursor,cursor);}
+    function routeCatalog() {
+      const params = new URLSearchParams(location.search);
+      const productId = params.get('product');
+      if (productId) {
+        const p = getFrontendProduct(productId);
+        if (!p) { showCatalog('SHOP ALL'); return; }
+        if (isProductAgeRestricted(p) && !window.requireCasperAgeVerification?.('Age verification is required to view this product.')) return;
+        renderProductDetailPage(p);
+        return;
       }
-    });
+      const raw=params.get('category'); if(!raw){leaveCatalog();return;}
+      const cat=decodeURIComponent(raw).toUpperCase();
+      if(categoryMap[cat] || navbarSubcategoryKeys.has(cat) || ['SHOP ALL','DEALS','BRANDS'].includes(cat)) showCatalog(cat);
+    }
+    renderHomeCategorySamples();
+    window.addEventListener('popstate',routeCatalog);
 
-    document.querySelectorAll('.cc-hsearch, .cc-mnav__search').forEach(form=>form.addEventListener('submit',e=>{
-      const q=form.querySelector('input[type="search"]')?.value.trim().toLowerCase();
-      if(!q)return;
-      const exact=navCategories.find(c=>c.toLowerCase()===q);
-      const alias=q.includes('vape')?'VAPES & DISPOSABLES':q.includes('e-liquid')||q.includes('eliquid')?'E-LIQUIDS':q.includes('concentrate')?'CONCENTRATES':q.includes('glass')?'GLASS':q.includes('accessor')?'ACCESSORIES':q.includes('deal')?'DEALS':q.includes('brand')?'BRANDS':null;
-      const cat=exact||alias;
-      if(cat){e.preventDefault();history.pushState({},'',`?category=${encodeURIComponent(cat)}`);productPage(cat);return;}
-      const matches=allProducts.some(p=>`${p.title} ${p.category} ${p.color}`.toLowerCase().includes(q));
-      if(matches){e.preventDefault();history.pushState({},'',`?category=SHOP%20ALL`);productPage('SHOP ALL',q);}
+    document.querySelectorAll('.cc-hsearch,.cc-mnav__search').forEach(form=>form.addEventListener('submit',e=>{
+      const q=normalizeSearch(form.querySelector('input[type="search"]')?.value); if(!q)return;
+      e.preventDefault();history.pushState({},'',`?category=${encodeURIComponent('SHOP ALL')}`);showCatalog('SHOP ALL');
+      const s=document.getElementById('casper-fec-search');if(s){s.value=q;s.dispatchEvent(new Event('input',{bubbles:true}));}
     }));
 
-    window.addEventListener('popstate',routeFromUrl);
-    routeFromUrl();
+    // Sanitize persisted cart and prevent zero/negative quantities.
+    cart=(Array.isArray(cart)?cart:[]).filter(i=>i&&i.title&&Number(i.price)>=0&&Number.isInteger(Number(i.quantity))&&Number(i.quantity)>0);
+    cart.forEach(i=>{const p=getFrontendProduct(i.productId);if(p)i.quantity=Math.min(i.quantity,availableInventory(p));});
+    cart=cart.filter(i=>i.quantity>0); saveCart();
+
+    window.casperFrontendOrderState={
+      get(){try{return JSON.parse(localStorage.getItem('casper_frontend_orders')||'{}')}catch(_){return{}}},
+      save(order){const orders=this.get();orders[order.number]=order;localStorage.setItem('casper_frontend_orders',JSON.stringify(orders));return order;}
+    };
+    const qaApi = {
+      products: frontendProducts,
+      validateCatalog: validateCatalogRecords,
+      validateQuantity, validateCartItemQuantity, validateAddress, canShipToState, calculateShipping,
+      ageVerified:()=>!!window.casperAgeVerified?.(), ageGateTest:(dob)=>window.getCasperDobValidation?.(dob), config:FRONTEND_COMPLIANCE_CONFIG,
+      getCart:()=>[...cart], clearCart:()=>{cart=[];saveCart();},
+      getOrders:()=>window.casperFrontendOrderState?.get?.() || {},
+      updateOrderStatus:(number,status)=>{ const orders=window.casperFrontendOrderState?.get?.()||{}; if(!orders[number]) return false; orders[number].status=status; orders[number].updatedAt=new Date().toISOString(); localStorage.setItem('casper_frontend_orders',JSON.stringify(orders)); return true; },
+      refundOrder:(number,amount)=>{ const orders=window.casperFrontendOrderState?.get?.()||{}; if(!orders[number]) return false; const order=orders[number]; const refund=Math.min(Math.max(0,Number(amount||0)),Number(order.total||order.subtotal||0)); order.refundAmount=Number(refund.toFixed(2)); order.refundStatus='Refunded'; order.status=refund>=Number(order.total||order.subtotal||0)?'Refunded':'Partially Refunded'; order.updatedAt=new Date().toISOString(); localStorage.setItem('casper_frontend_orders',JSON.stringify(orders)); return order; },
+      returnOrder:(number)=>{ const orders=window.casperFrontendOrderState?.get?.()||{}; if(!orders[number]) return false; orders[number].status='Returned'; orders[number].returnStatus='Requested'; orders[number].updatedAt=new Date().toISOString(); localStorage.setItem('casper_frontend_orders',JSON.stringify(orders)); return orders[number]; },
+      exportCatalogCSV:()=>{ const fields=['productId','sku','upc','manufacturer','brand','title','category','subcategory','slug','status','salePrice','cost','inventory','reserved','weightOz','minAge']; const rows=[fields.join(','),...frontendProducts.map(p=>fields.map(f=>`"${String(p[f]??'').replace(/"/g,'""')}"`).join(','))]; return rows.join('\n'); },
+      importRows:(rows)=>{ const input=Array.isArray(rows)?rows:[]; const errors=[]; const seen={productId:new Set(),sku:new Set(),upc:new Set()}; const categories=new Set(frontendProducts.map(p=>String(p.category||'').toLowerCase())); const brands=new Set(frontendProducts.map(p=>String(p.brand||'').toLowerCase())); const statuses=new Set(['Draft','Active','Out of Stock','Discontinued']); const dateRe=/^\d{4}-\d{2}-\d{2}$/; input.forEach((r,i)=>{const row=i+1; for(const field of ['productId','sku','upc']){if(!r[field])errors.push(`Row ${row} — Missing ${field==='productId'?'Product ID':field.toUpperCase()}`); else {const val=String(r[field]); if(seen[field].has(val))errors.push(`Row ${row} — Duplicate ${field==='productId'?'Product ID':field.toUpperCase()}`); seen[field].add(val);}} if(!r.title)errors.push(`Row ${row} — Blank product name`); if(r.price===''||r.salePrice==='')errors.push(`Row ${row} — Missing price`); if(Number(r.price??r.salePrice)<0)errors.push(`Row ${row} — Negative price`); if(Number(r.cost)<0)errors.push(`Row ${row} — Negative cost`); if(Number(r.inventory)<0)errors.push(`Row ${row} — Negative inventory`); if(r.category && !categories.has(String(r.category).toLowerCase()))errors.push(`Row ${row} — Invalid category`); if(r.brand && !brands.has(String(r.brand).toLowerCase()))errors.push(`Row ${row} — Invalid brand`); if(r.status && !statuses.has(String(r.status)))errors.push(`Row ${row} — Invalid status`); for(const f of ['effective_from','effective_to','next_review_date']){if(r[f] && !dateRe.test(String(r[f])))errors.push(`Row ${row} — Invalid date in ${f}`);} if(r.title && /[<>]/.test(String(r.title)))errors.push(`Row ${row} — Invalid characters in product name`); }); return {valid:errors.length===0,errors}; }
+    };
+    window.CasperFrontendQA=Object.freeze(qaApi);
+
+    // Optional frontend-only QA dashboard. Open ?qa=1 to exercise the checklist with demo data.
+    if (new URLSearchParams(location.search).get('qa') === '1') {
+      const qa = document.createElement('section'); qa.className='casper-qa-panel'; qa.setAttribute('aria-label','Frontend compliance QA sandbox');
+      const result = validateCatalogRecords();
+      qa.innerHTML=`<div class="cc-wrap"><div class="casper-qa-head"><div><span>CASPER FRONTEND COMPLIANCE LAB</span><h2>Demo QA Sandbox</h2><p>${frontendProducts.length} products · ${frontendProducts.reduce((n,p)=>n+(p.variants||[]).length,0)} variants · browser-only simulation</p></div><button id="casper-qa-close" type="button">BACK TO STORE</button></div>
+      <div class="casper-qa-grid">
+        <div class="casper-qa-card"><strong>${result.valid?'PASS':'ISSUES'}</strong><span>Catalog field validation</span><small>${result.valid?'All demo Product IDs, SKUs, UPCs, slugs and required fields are unique/present.':result.errors.slice(0,5).join(' | ')}</small></div>
+        <div class="casper-qa-card"><strong>21+</strong><span>Age gate</span><small>Invalid/future/impossible DOB and under-21 attempts are rejected before restricted flows.</small></div>
+        <div class="casper-qa-card"><strong>STOCK</strong><span>Inventory guards</span><small>Variant quantity cannot exceed available inventory; low/out-of-stock states are rendered.</small></div>
+        <div class="casper-qa-card"><strong>PRICE</strong><span>Pricing & promos</span><small>Retail, sale, compare-at, cost, margin, percent/fixed demo coupons and free-shipping threshold.</small></div>
+      </div>
+      <div class="casper-qa-actions"><button data-qa="underage">Test under-age gate</button><button data-qa="invalid-dob">Test invalid DOB</button><button data-qa="future-dob">Test future DOB</button><button data-qa="stock">Test oversell guard</button><button data-qa="address">Test invalid address</button><button data-qa="export">Export demo catalog CSV</button></div>
+      <pre id="casper-qa-output">Ready. Use the buttons above or window.CasperFrontendQA in DevTools.</pre></div>`;
+      document.querySelector('main')?.prepend(qa);
+      qa.querySelector('#casper-qa-close')?.addEventListener('click',()=>{history.pushState({},'',location.pathname);location.reload();});
+      qa.addEventListener('click',e=>{ const action=e.target.closest('[data-qa]')?.dataset.qa; if(!action)return; const out=qa.querySelector('#casper-qa-output');
+        if(action==='underage') out.textContent=JSON.stringify(window.CasperFrontendQA.ageGateTest?.('01/01/2010') || {message:'Use the DOB gate at page load; session storage is isolated per browser.'},null,2);
+        if(action==='invalid-dob') out.textContent=JSON.stringify({valid:false,reason:'Calendar validation rejects 02/31/2000.'},null,2);
+        if(action==='future-dob') out.textContent=JSON.stringify({valid:false,reason:'Future dates are rejected.'},null,2);
+        if(action==='stock'){ const p=frontendProducts.find(x=>(x.variants||[]).length); const v=p?.variants?.[0]; out.textContent=JSON.stringify({product:p?.title,variant:v?.value,available:v?.available,attempted:(Number(v?.available||0)+1),result:window.CasperFrontendQA.validateCartItemQuantity({productId:p?.productId,variantId:v?.id},Number(v?.available||0)+1)},null,2); }
+        if(action==='address') out.textContent=JSON.stringify({valid:false,reason:window.CasperFrontendQA.validateAddress({email:'bad',address:'x',city:'1',zip:'abc'})},null,2);
+        if(action==='export'){ const blob=new Blob([window.CasperFrontendQA.exportCatalogCSV()],{type:'text/csv'}); const url=URL.createObjectURL(blob); const a=document.createElement('a');a.href=url;a.download='casper-demo-catalog.csv';a.click();setTimeout(()=>URL.revokeObjectURL(url),500);out.textContent='Demo catalog CSV export started.'; }
+      });
+    }
+    routeCatalog();
   })();
 
 });

@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 440">
-<defs><radialGradient id="bg"><stop offset="0" stop-color="#242936"/><stop offset="1" stop-color="#0b0c10"/></radialGradient></defs>
-<rect width="440" height="440" rx="28" fill="url(#bg)"/>
-<circle cx="70" cy="70" r="42" fill="#a8ff00" fill-opacity=".12"/>
-<text x="220" y="38" text-anchor="middle" font-family="Arial,sans-serif" font-size="15" font-weight="700" fill="#a8ff00" letter-spacing="2">TRAYS &amp; STORAGE</text>
-<rect x="90" y="125" width="260" height="170" rx="30" fill="#a8ff00"/><rect x="115" y="150" width="210" height="120" rx="22" fill="#11131a"/><circle cx="180" cy="205" r="18" fill="#fff" fill-opacity=".5"/><circle cx="260" cy="220" r="28" fill="#fff" fill-opacity=".35"/>
-<text x="220" y="390" text-anchor="middle" font-family="Arial,sans-serif" font-size="14" font-weight="700" fill="#f4f4f5">CASPER 01 PRODUCT VISUAL</text>
-</svg>
