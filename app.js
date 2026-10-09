@@ -1447,7 +1447,23 @@ document.addEventListener('DOMContentLoaded', function () {
     const safeName=escapeHtml(account.name || user.name || 'Customer');
     const safeEmail=escapeHtml(account.email || user.email || '');
 
-    openModal(`
+    closeModal();
+    const accountRootId = 'casper-full-account-page';
+    let accountRoot = document.getElementById(accountRootId);
+    if (!accountRoot) {
+      accountRoot = document.createElement('section');
+      accountRoot.id = accountRootId;
+      accountRoot.className = 'casper-full-account-page';
+      const mainHost = document.querySelector('main') || document.body;
+      mainHost.appendChild(accountRoot);
+    }
+    const mainHost = accountRoot.closest('main');
+    if (mainHost) Array.from(mainHost.children).forEach(el => {
+      if (el !== accountRoot) { el.setAttribute('data-casper-account-hidden','true'); el.style.display='none'; }
+    });
+    accountRoot.hidden = false;
+    accountRoot.innerHTML = `
+      <button type="button" class="casper-account-back" id="casper-account-back">← BACK TO SHOP</button>
       <div class="casper-account-dashboard">
         <div class="casper-account-hero">
           <div>
@@ -1509,19 +1525,31 @@ document.addEventListener('DOMContentLoaded', function () {
           ${addresses.length ? addresses.map(a=>`<div class="casper-saved-address">${escapeHtml(a.address || '')}, ${escapeHtml(a.city || '')}, ${escapeHtml(a.state || '')} ${escapeHtml(a.zip || '')}</div>`).join('') : '<div class="casper-order-empty">No saved addresses yet. Your checkout address can be saved here in the full account system.</div>'}
         </div>
       </div>
-    `);
+    `;
 
-    const panels=[...document.querySelectorAll('[data-account-panel]')];
+    const panels=[...accountRoot.querySelectorAll('[data-account-panel]')];
     function showPanel(name){ panels.forEach(p=>p.style.display=p.dataset.accountPanel===name?'block':'none'); }
     showPanel('orders');
-    document.querySelectorAll('[data-account-tab]').forEach(btn=>btn.addEventListener('click',()=>showPanel(btn.dataset.accountTab)));
-    const logout=document.querySelector('.casper-account-logout');
+    accountRoot.querySelectorAll('[data-account-tab]').forEach(btn=>btn.addEventListener('click',()=>showPanel(btn.dataset.accountTab)));
+    const back=document.getElementById('casper-account-back');
+    if(back) back.addEventListener('click',()=>{
+      accountRoot.hidden = true;
+      if (mainHost) Array.from(mainHost.children).forEach(el => {
+        if (el.hasAttribute('data-casper-account-hidden')) { el.style.display=''; el.removeAttribute('data-casper-account-hidden'); }
+      });
+      window.scrollTo({top:0,behavior:'smooth'});
+    });
+    const logout=accountRoot.querySelector('.casper-account-logout');
     if(logout) logout.addEventListener('click',()=>{
       localStorage.removeItem('casper_logged_user');
       updateUserAccountUI();
-      closeModal();
+      accountRoot.hidden = true;
+      if (mainHost) Array.from(mainHost.children).forEach(el => {
+        if (el.hasAttribute('data-casper-account-hidden')) { el.style.display=''; el.removeAttribute('data-casper-account-hidden'); }
+      });
       showToast('Logged out successfully.', 'info');
     });
+    window.scrollTo({top:0,behavior:'smooth'});
   }
 
   function openAccountModal() {
@@ -2826,10 +2854,18 @@ document.addEventListener('DOMContentLoaded', function () {
       const money = n => `$${Number(n||0).toFixed(2)}`;
       const related = allCatalogProducts().filter(x => x.productId !== p.productId && (x.subcategory === p.subcategory || x.category === p.category)).filter(x => x.status !== 'Discontinued').slice(0,6);
       const image = selected.image || p.image || imageFallback(p.title);
+      const galleryCandidates = [
+        ...(Array.isArray(p.galleryImages) ? p.galleryImages : []),
+        ...(Array.isArray(p.gallery) ? p.gallery : []),
+        ...(Array.isArray(p.images) ? p.images : []),
+        ...variants.map(v => v.image).filter(Boolean),
+        image
+      ].map(x => typeof x === 'string' ? x : (x && (x.url || x.src || x.image)) || '').filter(Boolean);
+      const gallery = [...new Set(galleryCandidates)].slice(0, 6);
       root.innerHTML = `<div class="casper-product-page">
         <button type="button" class="casper-fec-back">← BACK TO PRODUCTS</button>
         <div class="casper-product-detail-grid">
-          <div class="casper-product-detail-media"><img id="detail-main-image" src="${escapeHtml(image)}" alt="${escapeHtml(p.title)}" loading="eager"></div>
+          <div class="casper-product-gallery-wrap"><div class="casper-product-detail-media"><img id="detail-main-image" src="${escapeHtml(image)}" alt="${escapeHtml(p.title)}" loading="eager"><span class="casper-product-image-label">PRODUCT VIEW</span></div><div class="casper-product-thumbnails" aria-label="Product image gallery">${gallery.map((src,i)=>`<button type="button" class="casper-product-thumb ${src===image?'is-active':''}" data-gallery-src="${escapeHtml(src)}" aria-label="View product image ${i+1}"><img src="${escapeHtml(src)}" alt="${escapeHtml(p.title)} view ${i+1}" loading="lazy"></button>`).join('')}</div></div>
           <div class="casper-product-detail-info">
             <span class="casper-fec-badge">${escapeHtml(p.tag || p.category)}</span>
             <h1>${escapeHtml(p.title)}</h1>
@@ -2848,6 +2884,10 @@ document.addEventListener('DOMContentLoaded', function () {
         <section class="casper-related-products"><div class="casper-home-sample-head"><div><span class="casper-home-sample-eyebrow">YOU MAY ALSO LIKE</span><h2>RELATED PRODUCTS</h2><p>More products from ${escapeHtml(p.subcategory || p.category)}.</p></div></div><div class="casper-fec-grid">${related.map(productCard).join('')}</div></section>
       </div>`;
       const img=document.getElementById('detail-main-image'); if(img) img.onerror=function(){this.onerror=null;this.src=window.casperRealFallback?window.casperRealFallback(p.subcategory||p.category):imageFallback(p.title);};
+      root.querySelectorAll('[data-gallery-src]').forEach(btn=>btn.addEventListener('click',()=>{
+        if(img) img.src=btn.dataset.gallerySrc;
+        root.querySelectorAll('[data-gallery-src]').forEach(t=>t.classList.toggle('is-active',t===btn));
+      }));
       const price=document.getElementById('detail-price'), stock=document.getElementById('detail-stock'), add=document.getElementById('detail-add'), qty=document.getElementById('detail-qty');
       function update(){
         const available=Math.max(0,Number(selected.available??selected.inventory??p.inventory??0));
@@ -2857,7 +2897,10 @@ document.addEventListener('DOMContentLoaded', function () {
         stock.className='casper-detail-stock '+(available<=0?'is-out':available<=5?'is-low':'is-in');
         stock.textContent=available<=0?'OUT OF STOCK':available<=5?`ONLY ${available} LEFT`:`${available} ITEMS IN STOCK`;
         add.disabled=available<=0; add.textContent=available<=0?'OUT OF STOCK':`ADD TO CART — ${money(selected.salePrice??selected.price)}`;
-        if(img && selected.image) img.src=selected.image;
+        if(img && selected.image) {
+          img.src=selected.image;
+          root.querySelectorAll('[data-gallery-src]').forEach(t=>t.classList.toggle('is-active',t.dataset.gallerySrc===selected.image));
+        }
         if(Number(qty.value)>available) qty.value=Math.max(1,available);
       }
       document.querySelectorAll('.casper-detail-variant').forEach(btn=>btn.addEventListener('click',()=>{document.querySelectorAll('.casper-detail-variant').forEach(x=>x.classList.remove('is-selected'));btn.classList.add('is-selected');selected=variants.find(v=>String(v.id)===String(btn.dataset.variantId))||variants[0];update();}));

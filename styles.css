@@ -2962,3 +2962,23 @@ body.casper-nav-category-mode main { min-height: 0; }
 .casper-transaction-list{border:1px solid var(--casper-line);border-radius:9px;overflow:hidden}.casper-transaction-row{display:grid;grid-template-columns:1fr auto auto;gap:12px;align-items:center;padding:12px;border-bottom:1px solid var(--casper-line);font-size:11px}.casper-transaction-row:last-child{border-bottom:0}.casper-transaction-row span{font-weight:800}.casper-transaction-row em{font-size:9px;font-style:normal;text-transform:uppercase;color:var(--casper-green-ink)}
 .casper-profile-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.casper-profile-grid>div{border:1px solid var(--casper-line);border-radius:8px;padding:11px}.casper-profile-grid small{display:block;color:var(--casper-ink-soft);font-size:9px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px}.casper-profile-grid strong{font-size:11px;word-break:break-word}.casper-saved-address{padding:10px;border:1px solid var(--casper-line);border-radius:8px;font-size:11px;color:#ddd}
 @media(max-width:640px){.casper-transaction-row{grid-template-columns:1fr auto}.casper-transaction-row em{grid-column:2}.casper-profile-grid{grid-template-columns:1fr}.casper-order-row{font-size:10px}}
+
+
+/* Product gallery, readable controls and full-page customer dashboard */
+.casper-fec-back,.casper-account-back{background:#f4f4f4!important;color:#111!important;border:1px solid #d8d8d8!important;text-shadow:none!important;font-weight:800!important;box-shadow:none!important;}
+.casper-fec-back:hover,.casper-account-back:hover{background:#fff!important;color:#000!important;}
+.casper-product-gallery-wrap{min-width:0;}
+.casper-product-detail-media{position:relative;}
+.casper-product-image-label{position:absolute;top:14px;left:14px;z-index:2;background:#fff;color:#111;border:1px solid #ddd;border-radius:5px;padding:7px 10px;font-size:10px;font-weight:900;letter-spacing:.08em;line-height:1.2;}
+.casper-product-thumbnails{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;}
+.casper-product-thumb{width:76px;height:76px;padding:5px;overflow:hidden;border:1px solid var(--casper-line);border-radius:9px;background:#111;cursor:pointer;}
+.casper-product-thumb img{width:100%;height:100%;object-fit:contain;display:block;}
+.casper-product-thumb.is-active{border:2px solid var(--casper-green-ink);box-shadow:0 0 0 1px var(--casper-green-ink);}
+.casper-full-account-page{max-width:1200px;margin:0 auto;padding:28px 22px 70px;min-height:65vh;color:var(--casper-ink);}
+.casper-account-back{padding:12px 18px;border-radius:7px;cursor:pointer;margin-bottom:18px;}
+.casper-full-account-page .casper-account-dashboard{width:100%;max-width:none;margin:0 auto;text-align:left;background:var(--casper-card, #101212);border:1px solid var(--casper-line);border-radius:18px;padding:clamp(18px,3vw,34px);}
+.casper-full-account-page .casper-account-hero{display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap;}
+.casper-full-account-page .casper-dashboard-actions{display:flex;gap:10px;flex-wrap:wrap;margin:24px 0;}
+.casper-full-account-page .casper-dashboard-section{margin-top:22px;}
+.casper-full-account-page .casper-dashboard-section h3{font-size:20px;margin-bottom:14px;}
+@media(max-width:800px){.casper-product-detail-media{min-height:320px;padding:16px}.casper-product-detail-media img{height:320px}.casper-product-thumbnails{gap:7px}.casper-product-thumb{width:62px;height:62px}.casper-full-account-page{padding:18px 12px 45px}.casper-full-account-page .casper-account-dashboard{padding:16px}.casper-full-account-page .casper-dashboard-actions button{flex:1 1 42%;}}
